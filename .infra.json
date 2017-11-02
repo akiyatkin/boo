@@ -1,0 +1,5 @@
+{
+	"conf":"infrajs\\boo\\Boo",
+	"cachedir":"!boo/",
+	"update":"update.php"
+}
