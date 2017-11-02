@@ -1,5 +1,5 @@
 {
-	"conf":"infrajs\\boo\\Boo",
+	"conf":"akiyatkin\\boo\\Boo",
 	"cachedir":"!boo/",
 	"update":"update.php"
 }
