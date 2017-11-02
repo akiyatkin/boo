@@ -3,4 +3,4 @@
 use infrajs\path\Path;
 use akiyatkin\boo\Boo;
 
-Path::mkdir($Boo::$conf['cachedir']);
+Path::mkdir(Boo::$conf['cachedir']);
