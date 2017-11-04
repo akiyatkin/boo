@@ -4,19 +4,25 @@ use akiyatkin\boo\Boo;
 use akiyatkin\boo\Face;
 use infrajs\ans\Ans;
 use infrajs\access\Access;
+use infrajs\config\Config;
 
 Access::test(true);
+Config::get('timezone');
 
-Rest::get( function () {
+$msg = Rest::get( function () {
 		
 	}, 'refresh', [ function () {
 			Boo::refresh();	
+			return 'Весь кэш обновлён';
 		}, function ($type, $name){
 			Boo::refresh($name);
+			return 'Кэш обновлён';
 	}], 'remove', [ function () {
 			Boo::remove();
+			return 'Весь кэш удалён';
 		}, function ($type, $name) {
 			Boo::remove($name);
+			return 'Кэш удалён';
 	} ], 'test', function(){
 		Boo::cache("test", function () {
 			return 'Проверка';
@@ -24,4 +30,4 @@ Rest::get( function () {
 	}
 );
 
-return Face::list();
+return Face::list($msg);

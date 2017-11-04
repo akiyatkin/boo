@@ -53,7 +53,13 @@ class Boo {
 		if (!$file) return true;
 		return unlink($file);
 	}
-	public static $re = false;
+	public static function isre($name) {
+		if (!isset($_GET['-boo'])) return false;
+		$re = explode(',',$_GET['-boo']);
+		return in_array($name, $re);
+	}
+	public static $re = false; //Глобальный refresh
+	public static $parents = array();
 	public static function cache($name, $fn, $args = array())
 	{
 		return Once::exec('Boo::cache'.$name, function ($args, $r, $hash) use ($name, $fn) {
@@ -61,7 +67,9 @@ class Boo {
 			Path::mkdir($dir);
 			$file = $dir.'/'.$hash.'.json';
 			$data = Boo::file_get_json($file);
-			if ($data && !Boo::$re) return $data['result'];
+
+			$re = Boo::$re ? true : Boo::isre($name);
+			if ($data && !$re) return $data['result'];
 			
 			if (!$data) {
 				$data = array();
@@ -72,25 +80,31 @@ class Boo {
 			
 			$data['time'] = time();
 
-			$is = Nostore::check( function () use (&$data, $fn, $args) { //Проверка был ли запрет кэша
-				$orig = Boo::$re;
-				Boo::$re = false;
-				$data['result'] = call_user_func_array($fn, array_merge($args, array(Boo::$re)));
-				Boo::$re = $orig;
+			Boo::$parents[] = $name;
 
+			if (preg_match('/\?/',$data['src'])) $data['boo'] = '&';
+			else $data['boo'] = '?';
+
+			$data['boo'] .= '-boo='.implode(',', Boo::$parents);
+			
+
+			$is = Nostore::check( function () use (&$data, $fn, $args, $re) { //Проверка был ли запрет кэша
+				$data['result'] = call_user_func_array($fn, array_merge($args, array($re)));
 			});
+			array_pop(Boo::$parents);
 
 			if ($is) {
-				if (Boo::$re) Boo::unlink($file);
+				if ($re) Boo::unlink($file);
 			} else {
 				Boo::file_put_json($file, $data); //С re мы всё равно сохраняем кэш
 			}
 			return $data['result'];
 		}, array($args));
 	}
-	public static function refresh($name, $args = false) {
+	public static function refresh($name = false, $args = false) {
 		$dir = Boo::$conf['cachedir'];
 		if (!$name) {
+			Boo::$re = true; //Глобальный refresh
 			Boo::scandir($dir, function ($file) use ($dir) {
 				if (Boo::is_file($dir.$file)) return;
 				Boo::refresh($file);
@@ -104,19 +118,15 @@ class Boo {
 			$file = $dir.$hash.'.json';
 			$data = Boo::file_get_json($file);
 			Load::json($data['src']);
-			//$r = Boo::unlink($file);
-			return true;
 		} else {
-			//$r = Path::fullrmdir($dir, true);
-			Boo::scandir($dir, function ($file) use ($dir) {
-				$file = $dir.$file;
-				$data = Boo::file_get_json($file);
-				Boo::$re = true;
-				Load::loadTEXT($data['src']);
-				Boo::$re = false;
+			Boo::scandir($dir, function ($name) use ($dir) {
+				$file = $dir.$name;
+				$data = Boo::file_get_json($file);	
+				if (empty($data['boo'])) $data['boo'] = '';
+				Load::loadTEXT($data['src'].$data['boo']);
 			});
-			return true;
 		}
+		return true;
 	}
 	public static function remove($name = false, $args = false) {
 		$dir = Boo::$conf['cachedir'];
