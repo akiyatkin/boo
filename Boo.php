@@ -121,8 +121,7 @@ class Boo {
 		} else {
 			Boo::scandir($dir, function ($name) use ($dir) {
 				$file = $dir.$name;
-				$data = Boo::file_get_json($file);	
-				if (empty($data['boo'])) $data['boo'] = '';
+				$data = Boo::file_get_json($file);
 				Load::loadTEXT($data['src'].$data['boo']);
 			});
 		}

@@ -5,6 +5,7 @@ use infrajs\rest\Rest;
 use akiyatkin\boo\Boo;
 use akiyatkin\boo\Face;
 use infrajs\ans\Ans;
+use infrajs\load\Load;
 use infrajs\access\Access;
 
 class Face {
@@ -45,6 +46,7 @@ class Face {
 		$data['size'] = $size;
 		$data['count'] = $count;
 		$html = Rest::parse('-boo/layout.tpl', $data, 'LIST');
-		return Ans::html($html);
+
+		Ans::html($html);
 	}
 }
