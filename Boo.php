@@ -73,9 +73,12 @@ class Boo {
 			$data['time'] = time();
 
 			$is = Nostore::check( function () use (&$data, $fn, $args) { //Проверка был ли запрет кэша
+				$orig = Boo::$re;
+				Boo::$re = false;
 				$data['result'] = call_user_func_array($fn, array_merge($args, array(Boo::$re)));
+				Boo::$re = $orig;
+
 			});
-			
 
 			if ($is) {
 				if (Boo::$re) Boo::unlink($file);
@@ -83,7 +86,7 @@ class Boo {
 				Boo::file_put_json($file, $data); //С re мы всё равно сохраняем кэш
 			}
 			return $data['result'];
-		}, array($args), Boo::$re);
+		}, array($args));
 	}
 	public static function refresh($name, $args = false) {
 		$dir = Boo::$conf['cachedir'];
@@ -108,10 +111,9 @@ class Boo {
 			Boo::scandir($dir, function ($file) use ($dir) {
 				$file = $dir.$file;
 				$data = Boo::file_get_json($file);
-				$orig = Boo::$re;
 				Boo::$re = true;
 				Load::loadTEXT($data['src']);
-				Boo::$re = $orig;
+				Boo::$re = false;
 			});
 			return true;
 		}

@@ -9,13 +9,20 @@ use infrajs\access\Access;
 
 class Face {
 	public static function list() {
-		$list = Boo::scandir(Boo::$conf['cachedir'], function (&$file, $dir) {
-			if (Boo::is_file($dir.$file)) return false;
-			$data = Boo::file_get_json($dir.$file);
-			$file = array(
-				'name' => $file,
-				'time' => Boo::filemtime($dir.$file)
+		$list = Boo::scandir(Boo::$conf['cachedir'], function (&$row, $dir) {
+			$name = $row;
+			if (Boo::is_file($dir.$name)) return false;
+			$data = Boo::file_get_json($dir.$name);
+			$row = array(
+				'name' => $name,
+				'count' => 0,
+				'time' => Boo::filemtime($dir.$name)
 			);
+			Boo::scandir(Boo::$conf['cachedir'].$name.'/', function ($cache) use ($name, &$row, $dir) {
+				$row['count']++;
+				$data = Boo::file_get_json($dir.$name.'/'.$cache);
+				if ($data['time'] > $row['time']) $row['time'] = $data['time'];
+			});
 		});
 		$data = array();
 		$data['list'] = $list;

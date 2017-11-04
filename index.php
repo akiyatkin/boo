@@ -10,7 +10,7 @@ Access::test(true);
 Rest::get( function () {
 		
 	}, 'refresh', [ function () {
-			Boo::remove();	
+			Boo::refresh();	
 		}, function ($type, $name){
 			Boo::refresh($name);
 	}], 'remove', [ function () {
