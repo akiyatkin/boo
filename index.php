@@ -6,7 +6,7 @@ use infrajs\ans\Ans;
 use infrajs\access\Access;
 use infrajs\config\Config;
 
-Access::test(true);
+Access::debug(true);
 Config::get('timezone');
 
 $msg = Rest::get( function () {
