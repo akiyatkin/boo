@@ -53,10 +53,13 @@ class Boo {
 		if (!$file) return true;
 		return unlink($file);
 	}
+	public static $boo = false;
 	public static function isre($name) {
-		if (!isset($_GET['-boo'])) return false;
-		$re = explode(',',$_GET['-boo']);
-		return in_array($name, $re);
+		if (!is_array(Boo::$boo)) {
+			if (isset($_GET['-boo'])) Boo::$boo = explode(',',$_GET['-boo']);
+			else return false;	
+		}
+		return in_array($name, Boo::$boo);
 	}
 	public static $re = false; //Глобальный refresh
 	public static $parents = array();
@@ -89,7 +92,10 @@ class Boo {
 			
 
 			$is = Nostore::check( function () use (&$data, $fn, $args, $re) { //Проверка был ли запрет кэша
+				//$orig = Boo::$re; //Все кэши внутри сбрасываются. Родительский кэш нужно указать явно в -boo и всё обновится
+				//Boo::$re = true;
 				$data['result'] = call_user_func_array($fn, array_merge($args, array($re)));
+				//Boo::$re = $orig;
 			});
 			array_pop(Boo::$parents);
 
