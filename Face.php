@@ -127,20 +127,66 @@ class Face {
 			}
 		}
 	}
+	//root - Группа1 - Кэш1 - Группа2 - Кэш2
+	//root - Группа3 - Кэш1
+
+
+	public static function checkParents($item, &$items, $path = '') {
+		
+	
+		if ($path && !in_array($path, $items[$item['id']]['parents'])) {
+			$items[$item['id']]['parents'][] = $path;
+		}
+		//$newpath = $newpath? $item['id']: $newpath.'.'.$item['id'];
+		foreach ($item['childs'] as $cid) {
+
+			if ($item['parents']) {
+
+				foreach ($item['parents'] as $newpath) {
+
+					$newpath = $newpath? $newpath.'.'.$item['id']: $item['id'];
+					
+					
+					Face::checkParents($items[$cid], $items, $newpath);
+				}
+			} else {
+
+				$newpath = $path;
+				Face::checkParents($items[$cid], $items, $newpath);
+			}
+		}
+		
+
+		/*foreach ($item['childs'] as $cid) {
+			if (!in_array($path, $items[$cid]['parents'])) {
+				//$items[$cid]['parents'][] = $path;
+			}
+			foreach ($items[$cid]['parents'] as $newpath) {
+				//$newpath = $newpath? $item['id']: $newpath.'.'.$item['id'];
+				Face::checkParents($items[$cid], $items, $newpath);
+			}
+		}*/
+		
+	}
 	public static function init($path) {
 		$src = Boo::$conf['cachedir'].'tree.json';
 		$items = Boo::file_get_json($src);
+		
+		$item = Boo::createItem('root', '');
+		foreach ($items as $id => $child) {
+			if (in_array('', $child['parents'])) {
+				$item['childs'][] = $id;
+			}
+		}
+		$items['root'] = $item;
+		
+		//Face::checkParents($item, $items, '');
+
 		$right = Sequence::right($path);
 		if (!$right || $right[0] == 'root') {
 			$path = '';
 			$right = array();
-			$item = Boo::createItem('root', '');
-			foreach ($items as $id => $child) {
-				if (in_array('', $child['parents'])) {
-					$item['childs'][] = $id;
-				}
-			}
-			$items['root'] = $item;
+			$item = $items['root'];
 		} else {
 			$id = $right[sizeof($right) - 1];
 
@@ -153,6 +199,14 @@ class Face {
 		}
 
 		return [$right, $item, $items,$path];
+	}
+	public static function checkPath($path, $child) {
+		if (in_array($path, $child['parents'])) return true;
+
+		//Нуно привести к нормальному виду $path Это значит от ближайшего кэша
+		/*echo '<pre>';
+		echo $path.'<br>';
+		print_r($child);*/
 	}
 	public static function list($path = 'root', $msg = '') {
 
@@ -209,7 +263,8 @@ class Face {
 					
 				
 				
-				if (!in_array($path,$child['parents'])) {
+				//if (!in_array($path,$child['parents'])) {
+				if (!isset($child['src'])&&!Face::checkPath($path, $child)) {
 					
 					$data['item']['dependencies'][$k] = $punkt;
 					$data['item']['dependencies'][$k]['path'] = $cid;
@@ -225,6 +280,16 @@ class Face {
 			}
 			foreach ($data['item']['parents'] as $k => $parpath) {
 				$r = Sequence::right($parpath);
+				
+				/*$r = array_reverse($r);
+				
+				$myr = array();
+				foreach ($r as $rid) {
+					$myr[] = $rid;
+					if (isset($items[$rid]['src'])) break;
+				}
+				$r = array_reverse($myr);*/
+
 				$r[] = $item['id'];
 				$parpath = Sequence::short($r);
 				$active = ($path == $parpath);

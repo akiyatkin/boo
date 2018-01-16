@@ -262,12 +262,8 @@ class Boo {
 
 		if (!in_array($path, $data['item']['parents'])) {
 			
-			//$data['item']['src'][] = Boo::getSrc();
-			//Boo::$item['src'] = array_values(array_unique(array_merge($data['item']['src'])));
-			//$data['item']['src'] = Boo::$item['src'];
-
 			$data['item']['parents'] = array_values(array_unique(array_merge($data['item']['parents'], Boo::$item['parents'])));
-			Boo::$item['parents'] = $data['item']['parents']; //На случай если будет перезапись
+			Boo::$item['parents'] = $data['item']['parents']; //На случай если будет перезапись и tree.json ещё нет
 
 			
 			$hash = Hash::make($args);//Нужно пересохранить результат, что бы мы всегда знали пути обращения к нему
