@@ -1,5 +1,6 @@
 {
 	"conf":"akiyatkin\\boo\\Boo",
 	"cachedir":"!boo/",
-	"update":"update.php"
+	"update":"update.php",
+	"require":"infra.php"
 }
