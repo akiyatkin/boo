@@ -94,9 +94,9 @@ class Boo {
 	public static function file_get_json($file) {
 		$src = Path::resolve($file);
 		if (!is_file($src)) return array();
-		$data = Load::loadJSON($file);
-		//$data = file_get_contents($file);
-		//$data = Load::json_decode($data);
+		//$data = Load::loadJSON($file); Нельзя использовать после вывода контента из-за проверки заголовков
+		$data = file_get_contents($src);
+		$data = Load::json_decode($data);
 		return $data;
 	}
 	public static function unlink($file) {
