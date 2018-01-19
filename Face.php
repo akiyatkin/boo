@@ -278,23 +278,22 @@ class Face {
 				
 				
 			}
-			foreach ($data['item']['parents'] as $k => $parpath) {
-				$r = Sequence::right($parpath);
-				
-				/*$r = array_reverse($r);
-				
-				$myr = array();
-				foreach ($r as $rid) {
-					$myr[] = $rid;
-					if (isset($items[$rid]['src'])) break;
+			/*if (isset($data['item']['src'])) {
+				$parents = [];
+				foreach ($data['item']['parents'] as $parent) {
+					$res = Face::findParents($data['item'], $items, $parent);
+					$parents = array_merge($parents, $res);
 				}
-				$r = array_reverse($myr);*/
-
-				$r[] = $item['id'];
-				$parpath = Sequence::short($r);
+			} else {*/
+				//$parents = Face::findParents($data['item'], $items, $path);
+			//}
+			$parents = $data['item']['parents'];
+			
+			foreach ($parents as $k => $parpath) {
 				$active = ($path == $parpath);
-				$data['item']['parents'][$k] = Face::makePath($parpath, $items, $active);
+				$parents[$k] = Face::makePath($parpath, $items, $active);
 			}
+			$data['item']['parents'] = $parents;
 		}
 		
 		
@@ -303,6 +302,65 @@ class Face {
 		$html = Rest::parse('-boo/layout.tpl', $data, 'LIST');
 
 		Ans::html($html);
+	}
+	public static function getParent($path, &$items) {
+		$rpath = Sequence::right($path);
+		$prev = $items[$rpath[sizeof($rpath)-1]];
+		return $prev;
+	}
+	/*
+		Subcache
+		Test - Folder1 - !Cache - !Subcache
+		Cache
+		Test - Folder1 - !Cache
+		Test - Folder2 - !Cache
+
+		Test - Folder1
+		Test - Folder2
+
+	*/
+	public static function findParents($witem, &$items, $orig, $add = '') {
+		$parents = $witem['parents'];
+		$result = [];
+
+		$addpath = $add;
+		if($add) $addpath = '.'.$add;
+		$neworig = Face::minusOne($orig);
+		
+
+
+
+		foreach ($parents as $path) {
+			if(!$path) {
+				$result[] = $add;
+			} else {
+				$next = Face::getParent($path, $items);
+				
+				if (isset($witem['src'])) {
+					
+					$norig = Face::minusOne($path);
+
+					$list = Face::findParents($next, $items, $norig, $next['id'].$addpath);
+
+				} else {
+					if ($orig == $path) {
+						$list = Face::findParents($next, $items, $neworig, $next['id'].$addpath);
+					} else {
+						$list = array();
+					}
+				}
+				$result = array_merge($result, $list);
+			}
+		}
+		return $result;
+	}
+	public static function minusOne($path) {
+		$r = Sequence::right($path);
+		array_pop($r);
+		return Sequence::short($r);
+	}
+	public static function fP($witem, &$items, $add = '') {
+		$next = Face::getParent($path, $items);
 	}
 	/*public static function form() {
 		$url = Ans::REQ('url','string');

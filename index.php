@@ -15,29 +15,9 @@ return Rest::get( function () {
 		return Face::list();
 	}, 'test2', function(){
 		Boo::start(["boo-test","Test"]);
-			Boo::start('wow');
-				Boo::start('one');
-				Boo::end();
-			Boo::end();
-			Boo::start('Folder4');
-				Boo::start('one');
+			Boo::start('FailParent for Cache');
+				Boo::start('Folder1');
 					Boo::cache('Cache2', function() {
-						Boo::cache('Subcache2', function() {
-							return 'Проверка Subcache';
-						});
-						return 'Проверка Cache';
-					});
-				Boo::end();
-			Boo::end();
-		Boo::end();
-		Boo::start(["boo-test","Test"]);
-			Boo::start('Folder3');
-				Boo::start('one');
-					Boo::cache('Cache', function() {
-						Boo::cache('Subcache', function() {
-							return 'Проверка Subcache';
-						});
-						return 'Проверка Cache';
 					});
 				Boo::end();
 			Boo::end();

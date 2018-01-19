@@ -20,7 +20,7 @@
 			{~length(item.parents)?:notroot}
 			{item.childs::childs}
 		</div>
-		{~length(item.parents)?:notroot2}
+		{~length(item.parents)?(item.src??:notroot2)}
 			
 		
 		
@@ -46,7 +46,7 @@
 		<h2><span style="font-weight: normal; font-size:80%; text-transform: none">{item.src?:Кэш?:Группа}:</span> {item.title}</h2>
 	{notroot2:}
 		<div style="margin-bottom:10px">
-			<div>Зависимости при других способах: <b>{~length(item.dependencies)}</b></div>
+			<div>Зависимости группе при других запросах: <b>{~length(item.dependencies)}</b></div>
 			{item.dependencies::childs}
 		</div>
 		{item.src?:moregroup}
@@ -58,7 +58,7 @@
 			Способов обращений: <b>{~length(item.parents)|:один}</b><br>
 			{item.parents::parents}
 		</div>
-		<div>Зависимости выбранного способа: <b>{~length(item.childs)}</b></div>
+		<div>Зависимостей: <b>{~length(item.childs)}</b></div>
 	{moregroup:}
 		<div>Адрес: <small><a href="/{item.src}">{item.src}</a></small></div>
 		
