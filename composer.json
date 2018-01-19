@@ -2,7 +2,6 @@
 	"name": "akiyatkin/boo",
 	"homepage":"https://github.com/akiyatkin/boo",
 	"description":"Группы кэша для поэтапного сброса",
-	"license": "GPL3",
 	"autoload": {
 		"psr-4": { "akiyatkin\\boo\\": "" }
 	},
