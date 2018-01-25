@@ -12,13 +12,46 @@ register_shutdown_function(function(){
 	chdir(Boo::$cwd);
 	if (Boo::$proccess || isset($_GET['-boo'])) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сравниваем
 		$items = Boo::initSave();
-		if (isset($_GET['-boo'])) {
+
+		$error = error_get_last();
+		if (isset($error)) {
+			if($error['type'] == E_ERROR
+				|| $error['type'] == E_PARSE
+				|| $error['type'] == E_COMPILE_ERROR
+				|| $error['type'] == E_CORE_ERROR) {
+				echo '<div>Boo: '.sizeof($items).'</div>';
+			} 
+		}
+		/*if (isset($_GET['-boo'])) {
 			var_dump(Boo::$proccess);
 			echo 'На этой странице <pre>';
 			print_r(Boo::$items);
 			echo 'Всё <pre>';
 			print_r($items);
 		}
+		Boo::run($items, function(&$item, $path, $level){
+			if (!isset($item['parents'])) $item['parents'] = array();
+			$item['parents'][] = $path;
+		});
+		foreach ($items as $id => $item) {
+			$parents = array();
+			if (!isset($item['src'])) continue;
+			foreach ($item['childs'] as $childpath) {
+				$cid = Boo::id($childpath);
+				$citem = $items[$cid];
+				$parents = array_merge($parents, $citem['parents']);
+			}
+			$items[$id]['childs'] = $parents;
+		}
+		Boo::run($items, function(&$item, $path, $level){
+			echo $level.':'.$path.'<br>';
+			echo '<pre>';
+			print_r($item);
+			echo '</pre>';
+		});
+		//echo '<pre>';
+		//print_r($items);
+		exit;*/
 		
 	}
 });
@@ -35,8 +68,35 @@ class Boo {
 			else unset($items[$id]['childs'][$k]);
 		}
 	}*/
+	public static function run(&$items, $root, $fn, $level = 1) {
+		//Есть разница между первым упоминанием и вторым. Merge всегда к концу делается аналогично
+		$right = Sequence::right($root);
+		$item = &$items[$right[sizeof($right) - 1]];
+		$fn($item, $root, $level);
+		foreach ($item['childs'] as $id) {
+			$newpath = Sequence::short(array_merge($right, [$id]));
+			
+			Boo::run($items, $newpath, $fn, $level +1);
+		}
+	}
+	public static function runGroups(&$items, $root, $fn, $level = 1) {
+		//Есть разница между первым упоминанием и вторым. Merge всегда к концу делается аналогично
+		$right = Sequence::right($root);
+		$item = &$items[$right[sizeof($right) - 1]];
+		$fn($item, $root, $level);
+		
+		foreach ($item['childgroups'] as $id) {
+			$newpath = Sequence::short(array_merge($right, [$id]));
+			
+			Boo::runGroups($items, $newpath, $fn, $level +1);
+		}
+	}
+	public static function id($path) {
+		$r = Sequence::right($path);
+		return $r[sizeof($r) - 1];
+	}
 	public static function initSave() {
-		$src = Boo::$conf['cachedir'].'tree.json';
+		$src = Boo::$conf['cachedir'].'.tree.json';
 		$items = Boo::file_get_json($src);
 		if (!$items) {
 			$items = Boo::$items;
@@ -45,12 +105,17 @@ class Boo {
 				if (!isset($items[$id])) {
 					$items[$id] = Boo::$items[$id];
 				} else {
-					if(isset(Boo::$items[$id]['src'])) {
+					if(isset(Boo::$items[$id]['timer'])) {
+						//Было обращение к кэшу и кэш переделывался
 						$items[$id]['timer'] = Boo::$items[$id]['timer'];
 						$items[$id]['time'] = Boo::$items[$id]['time'];
 						$items[$id]['src'] = Boo::$items[$id]['src'];
+						$items[$id]['group'] = Boo::$items[$id]['group']; //Разработка изменено название
+						$items[$id]['title'] = Boo::$items[$id]['title']; //Разработка изменено название
 					}
-					$items[$id]['parents'] = array_values(array_unique(array_merge($items[$id]['parents'], Boo::$items[$id]['parents'])));
+					
+					
+					//$items[$id]['parents'] = array_values(array_unique(array_merge($items[$id]['parents'], Boo::$items[$id]['parents'])));
 					if (isset($items[$id]['src'])) continue;
 					$items[$id]['childs'] = array_values(array_unique(array_merge($items[$id]['childs'], Boo::$items[$id]['childs'])));
 				}
@@ -122,10 +187,16 @@ class Boo {
 	public static function setTitle($title) {
 		Boo::$item['title'] = $title;
 	}
-	public static function &createItem($id, $title) {
+	public static function &createItem($gid = null, $gtitle = null, $id = null, $title = null) {
 		$item = array();
 		$item['id'] = $id;
-		$item['parents'] = array();
+		$item['type'] = 'item';
+		$item['group'] = array(
+			'id' => $gid,
+			'title' => $gtitle
+		);
+		
+		//$item['parents'] = array();
 		$item['counter'] = 0;
 		$item['title'] = $title;
 		$item['childs'] = array();
@@ -139,51 +210,29 @@ class Boo {
 			if (Boo::inParents($item, $items[$id], $items, $checked)) return true;
 		}
 	}*/
-	public static function &start($id, $title = false) {
-		$name = Boo::split($id, $title);
-		list($id, $title) = $name;
-
+	public static function &start($gid, $gtitle, $id, $title) {
 		
 		if (!isset(Boo::$items[$id])) {
-			Boo::$items[$id] = &Boo::createItem($id, $title);
+			Boo::$items[$id] = &Boo::createItem($gid, $gtitle, $id, $title);
 		}
 		Boo::$items[$id]['counter']++;
 
+		Boo::$parents[] = $id; //Для выхода
+		$newpath = Sequence::short(Boo::$parents);
 
-		$path = Sequence::short(Boo::$parents);
-		if (!in_array($path, Boo::$items[$id]['parents'])) {
-			Boo::$items[$id]['parents'][] = $path;
-		}
-		if (Boo::$item && !in_array($id, Boo::$item['childs'])) {
+		if (Boo::$item && !in_array($newpath, Boo::$item['childs'])) {
 			Boo::$item['childs'][] = $id;
 		}
 
-		/*if (Boo::$item['id'] != $id) {
-			foreach (Boo::$parents as $pid) {
-				if (isset(Boo::$items[$pid]['timer'])) {
-					if (!in_array($pid, Boo::$items[$id]['parents'])) {
-						Boo::$items[$id]['parents'][] = $pid;
-					}
-				}
-			}
-			if (!in_array($id, Boo::$item['childs'])) {
-				Boo::$item['childs'][] = $id;
-			}
-		}*/
-
-		Boo::$parents[] = $id;
 		Boo::$item = &Boo::$items[$id];
 		
 		return Boo::$items[$id];
 	}
 	public static function end() {
-		if (sizeof(Boo::$parents) < 1) {
-			throw 'Неопределённый Boo::end';
-		}
 		array_pop(Boo::$parents);
-		if (sizeof(Boo::$parents) > 0) {
-			Boo::$item = &Boo::$items[Boo::$parents[sizeof(Boo::$parents)-1]];
-		}
+		$r = null;
+		if (sizeof(Boo::$parents)) Boo::$item = &Boo::$items[Boo::$parents[sizeof(Boo::$parents) - 1]];
+		else Boo::$item = &$r;
 	}
 	public static function split($name, $title = false) {
 		if (is_array($name)) {
@@ -200,33 +249,40 @@ class Boo {
 		$src = preg_replace("/^\/+/", "", $_SERVER['REQUEST_URI']);
 		return $src;
 	}
+	
 	public static function &cache($name, $fn, $args = array())
 	{
-		list($id, $title) = Boo::split($name);
+		list($gid, $gtitle) = Boo::split($name);
 		
-		if (sizeof($args) == 0) {
-			$item = &Boo::start($id, $title, true);
-		} else {
-			$item = &Boo::start($id, $title);
-			$hash = Hash::make($args);
-			$idddd = $id.'-'.$hash;
-			if (is_string($args[0]) || is_number($args[0])) {
-				$title = $args[0];	
-			} else  {
-				$title = $hash;
-			}
-			$item = &Boo::start($idddd, $title, true);	
-		}
+		
 
-		$data = &Once::exec('boo-cache-'.$id, function &($args, $r, $hash) use ($fn, $id, &$item, &$proccess) {
+		
+
+		$hash = Hash::make($args);
+		$id = $gid.'-'.$hash;
+
+		$title = [];
+		$i = 0;
+		while (isset($args[$i]) && (is_string($args[$i]) || is_integer($args[$i]))) {
+			$title[] = $args[$i];
+			$i++;
+		}
+		$title = implode(' ', $title);
+
+		if (!$title) $title = $hash;
+		$parent = &Boo::$item;
+		$item = &Boo::start($gid, $gtitle, $id, $title);	
+		if (!sizeof($args)) Boo::setTitle($gtitle);
+		
+		
+		$data = &Once::exec('boo-cache-'.$gid, function &($args, $r, $hash) use (&$parent, $fn, $gid, &$item, &$proccess) {
 			
-			$dir = Boo::$conf['cachedir'].$id;
+			$dir = Boo::$conf['cachedir'].$gid;
 			Path::mkdir($dir);
 			$file = $dir.'/'.$hash.'.json';
 			$data = Boo::file_get_json($file);
 
-			$re = Boo::$re ? true : Boo::isre($id);
-			if ($data && !$re) return $data;
+			if ($data) return $data; //На родителя не влияет
 			
 			
 			$data = array();
@@ -241,48 +297,49 @@ class Boo {
 			//$data['boo'] .= '-boo='.implode(',', Boo::$parents);
 			Boo::$proccess = true;
 
-			$is = Nostore::check( function () use (&$data, $fn, $args, $re) { //Проверка был ли запрет кэша
+			$is = Nostore::check( function () use (&$data, $fn, $args) { //Проверка был ли запрет кэша
 				//$orig = Boo::$re; //Все кэши внутри сбрасываются. Родительский кэш нужно указать явно в -boo и всё обновится
 				//Boo::$re = true;
-				$data['result'] = call_user_func_array($fn, array_merge($args, array($re)));
+				$data['result'] = call_user_func_array($fn, $args);
 				//Boo::$re = $orig;
 			});
-			$item['timer'] = round(microtime(true) - $item['time'], 4);
+			$item['timer'] = round(microtime(true) - $item['timer'], 4);
 			$data['item'] = $item;
-			if ($is) {
-				if ($re) Boo::unlink($file);
-			} else {
+			if ($parent) {
+				$parent['timer'] = $parent['timer'] + $item['timer'];
+			}
+			if (!$is) {
 				Boo::file_put_json($file, $data); //С re мы всё равно сохраняем кэш
 			}
-
 			return $data;
 		}, array($args));
+		
+		//$path = Sequence::short(Boo::$parents);
+		//if (!in_array($path, $data['item']['childs'])) {
+			/*
+				У каждого кэша есть только один основной родитель! Не Массив.
+				А childs много и может быть много родителей у которых кэш указан в childs хотя у самого кэша указан только один родитель
 
-		$path = Sequence::short(Boo::$parents);
+			*/
+			//$data['item']['parents'] = array_values(array_unique(array_merge($data['item']['parents'], Boo::$item['parents'])));
+			//Boo::$item['parents'] = $data['item']['parents']; //На случай если будет перезапись и tree.json ещё нет
 
-		if (!in_array($path, $data['item']['parents'])) {
 			
-			$data['item']['parents'] = array_values(array_unique(array_merge($data['item']['parents'], Boo::$item['parents'])));
-			Boo::$item['parents'] = $data['item']['parents']; //На случай если будет перезапись и tree.json ещё нет
-
-			
-			$hash = Hash::make($args);//Нужно пересохранить результат, что бы мы всегда знали пути обращения к нему
-			$dir = Boo::$conf['cachedir'].$id;
-			$file = $dir.'/'.$hash.'.json';
-			Boo::file_put_json($file, $data); //Нужно пересохранить файл чтобы повторно не было срабатываний для этого родителя
-			Boo::$proccess = true;//Перезаписать всю структуру
+			//$hash = Hash::make($args);//Нужно пересохранить результат, что бы мы всегда знали пути обращения к нему
+			//$dir = Boo::$conf['cachedir'].$id;
+			//$file = $dir.'/'.$hash.'.json';
+			//Boo::file_put_json($file, $data); //Нужно пересохранить файл чтобы повторно не было срабатываний для этого родителя
+			//Boo::$proccess = true;//Перезаписать всю структуру
 					
-		}
+		//}
 
 		
-		foreach ($data['item'] as $k => $v) {
-			if (in_array($k,['parents'])) continue;
-			$item[$k] = $v;
-		}
+		//foreach ($data['item'] as $k => $v) {
+		//	if (in_array($k,['parents'])) continue;
+		//	$item[$k] = $v;
+		//}
 
-		if (sizeof($args) > 0) {
-			Boo::end();
-		}
+		
 		Boo::end();
 
 		return $data['result'];
@@ -330,5 +387,11 @@ class Boo {
 		}
 		return true;
 	}
+	//public static $root = ['root','Кэш'];
 }
 Boo::$cwd = getcwd();
+//Boo::start(Boo::$root);
+//Boo::$item = &Boo::createItem('root','Кэш');
+//Boo::$item['parents'] = array();
+//Boo::$items['root'] = &Boo::$item;
+

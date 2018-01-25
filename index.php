@@ -13,57 +13,50 @@ Config::get('timezone');
 
 return Rest::get( function () {
 		return Face::list();
-	}, 'test2', function(){
-		Boo::start(["boo-test","Test"]);
-			Boo::start('FailParent for Cache');
-				Boo::start('Folder1');
-					Boo::cache('Cache2', function() {
-					});
-				Boo::end();
-			Boo::end();
-		Boo::end();
-		return Face::list('root','Создана группа кэша <a href="/-boo/boo-test">Test</a>');
-
-		
-	//}, 'form', function () {
-		//$html = Load::loadTEXT('-boo/index.php');
-		//var_dump($html);
-		//exit;
-		//return Face::form();
 	}, 'test', function(){
 		
-		Boo::start(["boo-test","Test"]);
-			Boo::start('Folder1');
-				Boo::cache('Cache', function() {
-					Boo::cache('Subcache', function() {
-						return 'Проверка Subcache';
-					});
-					return 'Проверка Cache';
-				});
-			Boo::end();
+		
+			
 
+		Boo::cache('Тест', function() {
+			usleep(0.5*1000000);
+			Boo::cache('ТестДокументы', function() {
+				usleep(0.5*1000000);
+			}, array('ТестS1'));
+			Boo::cache('ТестДокументы', function() {
+				usleep(0.5*1000000);
+			}, array('ТестS2'));
+		});
 
-			Boo::start('Folder2');
-				Boo::cache('Cache', function() {
-					Boo::cache('Subcache', function() {
-						return 'Проверка Subcache';
-					});
-					return 'Проверка Cache';
-				});
-			Boo::end();
-		Boo::end();
-
-		return Face::list('root','Создана группа кэша <a href="/-boo/boo-test">Test</a>');
-	}, function($root, $action = '', $option = 'one') {
+		Boo::cache('ТестСвязи', function() {
+			usleep(0.5*1000000);
+			Boo::cache('ТестПапки', function() {
+				usleep(0.5*1000000);
+				Boo::cache('ТестДокументы', function() {
+					usleep(0.5*1000000);
+				}, array('ТестS1'));
+			},array('ТестУслуги'));
+			Boo::cache('ТестПапки', function() {
+				usleep(0.5*1000000);
+				Boo::cache('ТестДокументы', function() {
+					usleep(0.5*1000000);
+				}, array('ТестS2'));
+				Boo::cache('ТестДокументы', function() {
+					usleep(0.5*1000000);
+				}, array('ТестS3'));
+			},array('ТестБлог'));
+		});
+		echo 'Создана группа кэша <a href="/-boo/Тест">Тест</a>';
+	}, function($root, $action = '') {
 		$msg = '';
 		if ($action == 'refresh') {
-			$msg = 'Кэш '.$root.' обновлён';
-			Face::refresh($root, $option);
+			//$msg = 'Кэш '.$root.' обновлён';
+			Face::refresh($root);
 		}
 		if ($action == 'remove') {
-			Face::remove($root, $option);
+			Face::remove($root);
 		}
-		return Face::list($root, $msg);
+		return Face::list($root, $action);
 	}
 );
 
