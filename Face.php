@@ -32,21 +32,24 @@ class Face {
 		if (isset($item['timer'])) {
 			$mytime = $item['time'];
 			$mytimer = $item['timer'];
+			$mysize = Boo::filesize($item['file']);
 		} else {
 			$mytime = 0;
 			$mytimer = 0;
+			$mysize = 0;
 		}
 
 		foreach ($item['childs'] as $cid) {
 			//if (!in_array($path, $items[$cid]['parents'])) continue;
 			//if (!$path) $newpath = $cid;
 			//else $newpath = $path.'.'.$cid;
-			list($timer, $time) = Face::getTime($items[$cid], $items);
+			list($timer, $time, $size) = Face::getTime($items[$cid], $items);
 			if (!$time) continue;
 			$mytimer += $timer;
+			$mysize += $size;
 			if (!$mytime || $mytime < $time) $mytime = $time;
 		}
-		return [$mytimer, $mytime];
+		return [$mytimer, $mytime, $mysize];
 	}
 	public static function findAllChilds($item, $items, &$childs = array()) {
 		$right = $item['id'];
@@ -390,10 +393,13 @@ class Face {
 		if ($path == 'root') { //Общее время всего кэша
 			$data['time'] = 0;
 			$data['timer'] = 0;
+			$data['size'] = 0;
 			foreach ($items as $it) {
 				if ($data['time'] < $it['time']) $data['time'] = $it['time'];
 				$data['timer'] += $it['timer'];
+				$data['size'] += Boo::filesize($it['file']);
 			}
+			$data['size'] = round($data['size']/1000000,3);
 		}
 		
 		if ($path != 'root' && !$item) {
@@ -405,28 +411,21 @@ class Face {
 			$data['item'] = $item;
 		}
 		
-		
-		if (isset($_GET['data'])) {
-			echo '<pre>';
-			print_r($data);
-			exit;
-		}
-		if(sizeof($data['right'])>1) {
+		if (sizeof($data['right']) > 1) {
 			$data['parent'] = $data['right'][sizeof($data['right']) - 2];
 		}
 		if ($data['item']) {
-			list($timer, $time) = Face::getTime($data['item'], $items);
+			list($timer, $time, $size) = Face::getTime($data['item'], $items);
 
 			$data['item']['timer'] = $timer;
 			$data['item']['time'] = $time;
+			$data['item']['size'] = round($size/1000000,3);
 			
 			if (isset($data['item']['src'])) {
 					
 				$d = Boo::file_get_json($data['item']['file']);
 				if (!$d) {
-					if ($data['msg']) $data['msg'] .= '<br>';
-					$data['msg'] .= 'Кэш <b>'.$data['item']['title'].'</b> удалён';
-					$data['result'] = 0;
+					$data['remove'] = true;
 				} else {
 					$data['item']['result'] = $d['result'];
 					$data['item']['args'] = $d['args'];

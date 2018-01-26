@@ -10,11 +10,12 @@ use infrajs\sequence\Sequence;
 
 register_shutdown_function(function(){
 	chdir(Boo::$cwd);
-	if (Boo::$proccess || isset($_GET['-boo'])) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сравниваем
+	if (Boo::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сравниваем
 		$items = Boo::initSave();
 
 		$error = error_get_last();
 		if (isset($error)) {
+			//Обработка вечного таймаута, когда скрипт вылетает по времени и не успевает обработать отдельный кэш.
 			if($error['type'] == E_ERROR
 				|| $error['type'] == E_PARSE
 				|| $error['type'] == E_COMPILE_ERROR
@@ -22,37 +23,6 @@ register_shutdown_function(function(){
 				echo '<div>Boo: '.sizeof($items).'</div>';
 			} 
 		}
-		/*if (isset($_GET['-boo'])) {
-			var_dump(Boo::$proccess);
-			echo 'На этой странице <pre>';
-			print_r(Boo::$items);
-			echo 'Всё <pre>';
-			print_r($items);
-		}
-		Boo::run($items, function(&$item, $path, $level){
-			if (!isset($item['parents'])) $item['parents'] = array();
-			$item['parents'][] = $path;
-		});
-		foreach ($items as $id => $item) {
-			$parents = array();
-			if (!isset($item['src'])) continue;
-			foreach ($item['childs'] as $childpath) {
-				$cid = Boo::id($childpath);
-				$citem = $items[$cid];
-				$parents = array_merge($parents, $citem['parents']);
-			}
-			$items[$id]['childs'] = $parents;
-		}
-		Boo::run($items, function(&$item, $path, $level){
-			echo $level.':'.$path.'<br>';
-			echo '<pre>';
-			print_r($item);
-			echo '</pre>';
-		});
-		//echo '<pre>';
-		//print_r($items);
-		exit;*/
-		
 	}
 });
 class Boo {
@@ -163,6 +133,12 @@ class Boo {
 		$data = file_get_contents($src);
 		$data = Load::json_decode($data);
 		return $data;
+	}
+	public static function filesize($file) {
+		$file = Path::resolve($file);
+		if (!$file) return 0;
+		if (!is_file($file)) return 0;
+		return filesize($file);
 	}
 	public static function unlink($file) {
 		$file = Path::resolve($file);

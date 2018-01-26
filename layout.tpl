@@ -65,6 +65,8 @@
 	{sources:}
 		<a href="/{.}">{.}</a></br>
 	{cacheinfo:}
+		{remove??:cacheinfoshow}
+		{cacheinfoshow:}
 		<div style="margin-bottom:10px">
 			<div style="margin-bottom:10px">
 				<span class="a" onclick="$('.args').slideToggle()">Аргументы</span> | 
@@ -118,7 +120,7 @@
 	{item:timeinfoitem}
 
 	{:btnrefreshitem}
-
+	{remove?:removelabel}
 	{path??:groups}
 
 	<div style="margin-bottom:10px">
@@ -192,13 +194,17 @@
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
 		Длительность: <b>{timer} сек</b><br>
+		Размер: <b>{size} Мб</b><br>
 		Группа: <a href="/-boo/{item.group.id}" class="group">{item.group.title}</a><br>
-		Адрес: <a href="/{item.src}">{item.src}</a><br>
+		Адрес создания: <a href="/{item.src}">{item.src}</a><br>
+		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
 	</div>
 {timeinfogroup:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
-		Длительность: <b>{timer} сек</b>
+		Длительность: <b>{timer} сек</b><br>
+		Размер: <b>{size} Мб</b><br>
+		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
 	</div>
 {groups:}
 	{groups::prgroup}
@@ -210,5 +216,5 @@
 		{pointl:} <a title="Упростить путь" style="text-transform: none" href="/-boo/{item.id}">←</a> 
 		{point:} — 
 		{echotitle:}{title}{~last()|:point}
-{refreshlabel:}<div class="alert alert-success">Выполнено обновление</div>
-{removelabel:}<div class="alert alert-danger">Файлы удалены</div>
+{refreshlabel:}<div class="alert alert-success">Выполнено обновление!</div>
+{removelabel:}<div class="alert alert-success"><b>Кэш удалён!</b> Кэш будет создан при следующем обращении или обновлении.</div>

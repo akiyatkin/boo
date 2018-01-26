@@ -48,9 +48,7 @@ return Rest::get( function () {
 		});
 		echo 'Создана группа кэша <a href="/-boo/Тест">Тест</a>';
 	}, function($root, $action = '') {
-		$msg = '';
 		if ($action == 'refresh') {
-			//$msg = 'Кэш '.$root.' обновлён';
 			Face::refresh($root);
 		}
 		if ($action == 'remove') {
