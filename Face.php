@@ -6,6 +6,7 @@ use akiyatkin\boo\Boo;
 use akiyatkin\boo\Face;
 use infrajs\ans\Ans;
 use infrajs\load\Load;
+use infrajs\path\Path;
 use infrajs\once\Once;
 use infrajs\access\Access;
 use infrajs\sequence\Sequence;
@@ -105,7 +106,7 @@ class Face {
 		Boo::$proccess = false;
 		$src = Boo::$conf['cachedir'].'.tree.json';
 		Load::unload($src);
-		$src = Boo::resolve($src);
+		$src = Path::resolve($src);
 		clearstatcache($src);
 	}
 	public static function remove($path) {
