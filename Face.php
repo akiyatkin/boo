@@ -100,9 +100,12 @@ class Face {
 
 		$srcs = array_values(array_unique($srcs));
 		foreach ($srcs as $src) {
-			Load::loadJSON($src);
+			if(!$src) $src = 'index.php';
+			Load::loadTEXT($src);
 		}
+
 		Boo::initSave();
+
 		Boo::$proccess = false;
 		$src = Boo::$conf['cachedir'].'.tree.json';
 		Load::unload($src);

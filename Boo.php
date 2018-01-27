@@ -67,7 +67,9 @@ class Boo {
 	}
 	public static function initSave() {
 		$src = Boo::$conf['cachedir'].'.tree.json';
+		
 		$items = Boo::file_get_json($src);
+
 		if (!$items) {
 			$items = Boo::$items;
 		} else {
