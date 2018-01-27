@@ -100,7 +100,7 @@ class Face {
 
 		$srcs = array_values(array_unique($srcs));
 		foreach ($srcs as $src) {
-			Load::loadJSON($src);
+			Load::loadTEXT($src);
 		}
 		Boo::initSave();
 		Boo::$proccess = false;
