@@ -104,8 +104,9 @@ class Face {
 		Boo::initSave();
 		Boo::$proccess = false;
 		$src = Boo::$conf['cachedir'].'.tree.json';
-
 		Load::unload($src);
+		$src = Boo::resolve($src);
+		clearstatcache($src);
 	}
 	public static function remove($path) {
 		list($right, $item, $items, $path) = Face::init($path);
