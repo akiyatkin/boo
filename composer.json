@@ -7,6 +7,7 @@
 	},
 	"require":{
 		"infrajs/path":"~1",
+		"infrajs/router":"~1",
 		"infrajs/rest":"~1",
 		"infrajs/load":"~1",
 		"infrajs/once":"~1",
