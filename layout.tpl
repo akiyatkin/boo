@@ -47,9 +47,12 @@
 		{msg?msg:ans.msg?:LISTshow}
 		<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
 
-			<b>{right::echotitle}</b> <br><a href="/-boo/{path}/refresh">Обновить</a> | <a href="/-boo/{path}/remove">Удалить</a>
 			
-			<!--<br>
+			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove">
+				Удалить <b>{right::echotitle}</b>
+			</a>
+			<!--
+			<br>
 			<a href="/-boo/test">Создать тестовый кэш</a><br>
 			<a href="/-boo/form">Анализ страницы</a><br>-->
 		</div>
@@ -67,14 +70,25 @@
 	{cacheinfo:}
 		{remove??:cacheinfoshow}
 		{cacheinfoshow:}
-		<div style="margin-bottom:10px">
-			<div style="margin-bottom:10px">
-				<span class="a" onclick="$('.args').slideToggle()">Аргументы</span> | 
-				<span class="a" onclick="$('.result').slideToggle()">Результат</span>
-			</div>
-			<div style="display:none" class="args">{~print(args)}</div>
-			<div style="display:none" class="result">{~print(result)}</div>
+		<div>
+		  <!-- Навигационные вкладки -->  
+		  <ul class="nav nav-tabs" role="tablist">
+		    <li role="presentation" class="active">
+		    	<a href="#args" aria-controls="args" role="tab" data-toggle="tab">Аргументы</a>
+		    </li>
+		    <li role="presentation">
+		    	<a href="#res" aria-controls="res" role="tab" data-toggle="tab">Результат</a>
+		   	</li>
+		  </ul>
+
+		  <!-- Вкладки панелей -->  
+		  <div class="tab-content">
+		    <div role="tabpanel" class="tab-pane active" id="args">{~length(args)?~print(args)?:strno}</div>
+		    <div role="tabpanel" class="tab-pane" id="res">{~print(result)}</div>
+		  </div>
+
 		</div>
+	{strno:} <pre>Без аргументов</pre>
 	{parents:}
 		<div>
 			{::pathparent}
@@ -122,7 +136,6 @@
 	{:btnrefreshitem}
 	{remove?:removelabel}
 	{path??:groups}
-
 	<div style="margin-bottom:10px">
 		{item.src?item:cacheinfo}
 	</div>
