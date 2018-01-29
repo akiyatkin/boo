@@ -110,6 +110,7 @@ class Face {
 		$src = Boo::$conf['cachedir'].'.tree.json';
 		Load::unload($src);
 		$src = Path::resolve($src);
+		Once::clear('boo-face-init');
 		clearstatcache($src);
 	}
 	public static function remove($path) {
