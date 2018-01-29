@@ -61,4 +61,4 @@ $data = Boo::cache(['cache-group-id','group-title'], function($one, $two){
 Кэш сохраняется на жёстком диске в папке ```!boo/```. Описание всех кэш-элементов хранится в ```!boo/.tree.json```. Дерево кэш-зависимостей строится по childs без parents. Все childs определяются сразу, а родители могут появляться с течением времени при следующих запросах.
 
 ## Контакты
-Задать вопрос можно в группе ВКонтакта [https://vk.com/infrajs](https://vk.com/infrajs)
+Задать вопрос можно в группе ВКонтакта [https://vk.com/infrajs](https://vk.com/infrajs) или в [issues](https://github.com/akiyatkin/boo/issues) на github.
