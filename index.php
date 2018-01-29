@@ -47,12 +47,12 @@ return Rest::get( function () {
 			},array('ТестБлог'));
 		});
 		echo 'Создана группа кэша <a href="/-boo/Тест">Тест</a>';
-	}, function($root, $action = '') {
+	}, function($root, $action = '', $option = 'one') {
 		if ($action == 'refresh') {
-			Face::refresh($root);
+			Face::refresh($root, $option);
 		}
 		if ($action == 'remove') {
-			Face::remove($root);
+			Face::remove($root, $option);
 		}
 		return Face::list($root, $action);
 	}

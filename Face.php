@@ -72,7 +72,7 @@ class Face {
 		return array_keys($childs);
 
 	}
-	public static function search($path) {
+	public static function search($path, $option = 'one') {
 		list($right, $item, $items, $path) = Face::init($path);
 		if ($path == 'root') {
 			return array_keys($items);
@@ -83,22 +83,33 @@ class Face {
 		if (isset($item['src'])) {
 			$childs[$item['id']] = true;
 		}
-		Face::findAllMyChilds($item['rel']['childs'], $items, $childs);
+		if ($option == 'deep') {
+			Face::findAllMyChilds($item['rel']['childs'], $items, $childs);	
+		} else if(!isset($item['src'])) { //Если группа
+			foreach ($item['rel']['childs'] as $ch) {
+				$childs[$ch] = true;
+			}
+		}
 		$parents = $item['rel']['parents'];
 		$childs = array_unique(array_merge($parents,array_keys($childs)));
+		
 		return $childs;
 	}
-	public static function refresh($path) {
+	public static function refresh($path, $option = 'one') {
 		list($right, $item, $items, $path) = Face::init($path);
-		$childs = Face::search($path);
+		$childs = Face::search($path, $option);
+		
 		$srcs = array();
+		
 		foreach ($childs as $v) {
 			$item = $items[$v];
-			Boo::unlink($item['file']);
 			$srcs[] = $item['src'];	
+			Boo::unlink($item['file']);
 		}
+		
 
 		$srcs = array_values(array_unique($srcs));
+		
 		foreach ($srcs as $src) {
 			if(!$src) $src = 'index.php';
 			Load::loadTEXT($src);
@@ -113,10 +124,10 @@ class Face {
 		Once::clear('boo-face-init');
 		clearstatcache($src);
 	}
-	public static function remove($path) {
+	public static function remove($path, $option = 'one') {
 		list($right, $item, $items, $path) = Face::init($path);
 
-		$childs = Face::search($path);
+		$childs = Face::search($path, $option);
 		
 		foreach ($childs as $v) {
 			$it = $items[$v];
@@ -405,7 +416,8 @@ class Face {
 				$data['timer'] += $it['timer'];
 				$data['size'] += Boo::filesize($it['file']);
 			}
-			$data['size'] = round($data['size']/1000000,3);
+			$data['size'] = round($data['size']/1000000,2);
+			$data['timer'] = round($data['timer'],2);
 		}
 		
 		if ($path != 'root' && !$item) {
@@ -422,11 +434,23 @@ class Face {
 		}
 		if ($data['item']) {
 			list($timer, $time, $size) = Face::getTime($data['item'], $items);
-
-			$data['item']['timer'] = $timer;
-			$data['item']['time'] = $time;
-			$data['item']['size'] = round($size/1000000,3);
 			
+			if (isset($data['item']['timer'])) {
+				$data['item']['timerch'] = $data['item']['timer'];
+			} else {
+				$data['item']['timerch'] = 0;
+			}
+			if (!isset($data['item']['timer'])) { //Группы обновить без зависимостей
+				foreach($data['item']['rel']['childs'] as $ch) {
+					$data['item']['timerch'] += $items[$ch]['timer'];
+				}
+			}
+			$data['item']['timerch'] = round($data['item']['timerch'],2);
+			
+			$data['item']['timer'] = round($timer,2);
+			$data['item']['time'] = $time;
+			$data['item']['size'] = round($size/1000000,2);
+
 			if (isset($data['item']['src'])) {
 					
 				$d = Boo::file_get_json($data['item']['file']);

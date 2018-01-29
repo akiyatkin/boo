@@ -45,17 +45,7 @@
 		</style>
 		{:heading}
 		{msg?msg:ans.msg?:LISTshow}
-		<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
-
-			
-			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove">
-				Удалить <b>{right::echotitle}</b>
-			</a>
-			<!--
-			<br>
-			<a href="/-boo/test">Создать тестовый кэш</a><br>
-			<a href="/-boo/form">Анализ страницы</a><br>-->
-		</div>
+		
 	</div>
 {LISTshow:}
 	
@@ -127,7 +117,18 @@
 	{remove?:removelabel}
 	{:groups}
 	
-	
+	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
+
+		<div class="pull-right text-right">
+			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+				Удалить весь кэш
+			</a>
+		</div>
+		<!--
+		<br>
+		<a href="/-boo/test">Создать тестовый кэш</a><br>
+		<a href="/-boo/form">Анализ страницы</a><br>-->
+	</div>
 	
 {layout-default:}
 	{:title}
@@ -141,6 +142,23 @@
 	</div>
 	{~length(item.paths)>:1?:obrpaths?(~length(item.paths.0)>:1?:obrpaths)}
 	{~length(item.childs)?:zavchilds}
+
+	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
+
+		<div class="pull-right text-right">
+			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+				Удалить <b>{right::echotitle}</b> без зависимостей
+			</a><br>
+			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove/deep">
+				Удалить <b>{right::echotitle}</b> с зависимостями
+			</a>
+		</div>
+		<!--
+		<br>
+		<a href="/-boo/test">Создать тестовый кэш</a><br>
+		<a href="/-boo/form">Анализ страницы</a><br>-->
+	</div>
+
 	{zavchilds:}
 		<div>
 			<h2>Зависимости</h2>
@@ -176,7 +194,21 @@
 		{item.rel.childs::childs}
 	</div>
 
-	
+	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
+
+		<div class="pull-right text-right">
+			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+				Удалить <b>{right::echotitle}</b> без зависимостей
+			</a><br>
+			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove/deep">
+				Удалить <b>{right::echotitle}</b> с зависимостями
+			</a>
+		</div>
+		<!--
+		<br>
+		<a href="/-boo/test">Создать тестовый кэш</a><br>
+		<a href="/-boo/form">Анализ страницы</a><br>-->
+	</div>
 {vlgroups:}
 	<div style="margin-bottom:10px">
 		<h2>Вложенные группы</h2>
@@ -187,27 +219,27 @@
 	{refresh?:refreshlabel?:btnrefreshshowroot}
 	{btnrefreshshowroot:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить{layout=:root?:strall}</a>
+		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить весь кэш <b>{timer} сек.</b></a>
 	</div>
-	{strall:} весь кэш
 {btnrefreshitem:}
 	{refresh?:refreshlabel?:btnrefreshshowitem}
 	{btnrefreshshowitem:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{item.title}</b></a>
+		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{item.title}</b> <b>{item.timerch} сек.</b></a>
+		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.timer} сек.</b></a>
 	</div>
 {btnrefreshgroup:}
 	{refresh?:refreshlabel?:btnrefreshshowgroup}
 
 	{btnrefreshshowgroup:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{right::echotitle}</b></a>
+		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{right::echotitle}</b> <b>{item.timerch} сек.</b></a>
+		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.timer} сек.</b></a>
 	</div>
 {timeinfoitem:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
-		Длительность: <b>{timer} сек</b><br>
-		Размер: <b>{size} Мб</b><br>
+		Размер вмесе с зависимостями: <b>{size} Мб</b><br>
 		Группа: <a href="/-boo/{item.group.id}" class="group">{item.group.title}</a><br>
 		Адрес создания: <a href="/{item.src}">{item.src}</a><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
@@ -215,8 +247,7 @@
 {timeinfogroup:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
-		Длительность: <b>{timer} сек</b><br>
-		Размер: <b>{size} Мб</b><br>
+		Размер вмесе с зависимостями: <b>{size} Мб</b><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
 	</div>
 {groups:}
