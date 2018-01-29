@@ -88,8 +88,8 @@ class Boo {
 					
 					
 					//$items[$id]['parents'] = array_values(array_unique(array_merge($items[$id]['parents'], Boo::$items[$id]['parents'])));
-					if (isset($items[$id]['src'])) continue;
-					$items[$id]['childs'] = array_values(array_unique(array_merge($items[$id]['childs'], Boo::$items[$id]['childs'])));
+					//if (isset($items[$id]['src'])) continue; при обновлении может измениться
+					$items[$id]['childs'] = array_values(array_unique(array_merge(Boo::$items[$id]['childs'],$items[$id]['childs'])));
 				}
 			}
 		}
@@ -196,9 +196,9 @@ class Boo {
 		Boo::$items[$id]['counter']++;
 
 		Boo::$parents[] = $id; //Для выхода
-		$newpath = Sequence::short(Boo::$parents);
+		//$newpath = Sequence::short(Boo::$parents);
 
-		if (Boo::$item && !in_array($newpath, Boo::$item['childs'])) {
+		if (Boo::$item && !in_array($id, Boo::$item['childs'])) {
 			Boo::$item['childs'][] = $id;
 		}
 
@@ -231,10 +231,6 @@ class Boo {
 	public static function &cache($name, $fn, $args = array())
 	{
 		list($gid, $gtitle) = Boo::split($name);
-		
-		
-
-		
 
 		$hash = Hash::make($args);
 		$id = $gid.'-'.$hash;
@@ -253,10 +249,13 @@ class Boo {
 		if (!sizeof($args)) Boo::setTitle($gtitle);
 		
 		
-		$data = &Once::exec('boo-cache-'.$gid, function &($args, $r, $hash) use (&$parent, $fn, $gid, &$item, &$proccess) {
+		
+		$data = &Once::exec('boo-cache-'.$gid, function &($args, $r, $hash) use ($id, &$parent, $fn, $gid, &$item, &$proccess) {
 			
 			$dir = Boo::$conf['cachedir'].$gid;
 			Path::mkdir($dir);
+			
+		
 			$file = $dir.'/'.$hash.'.json';
 			$data = Boo::file_get_json($file);
 
@@ -264,6 +263,7 @@ class Boo {
 			
 			
 			$data = array();
+			$data['hash'] = $hash;
 			$data['args'] = $args;
 			$src = Boo::getSrc();
 			
@@ -291,7 +291,12 @@ class Boo {
 			}
 			return $data;
 		}, array($args));
-		
+		/*if (@$data['hash'] == '311a81499db988f309b8d245b368c0bb') {
+			echo '<pre>';
+			print_r($item);
+			print_r($data['item']);
+			print_r($parent);
+		}*/
 		//$path = Sequence::short(Boo::$parents);
 		//if (!in_array($path, $data['item']['childs'])) {
 			/*

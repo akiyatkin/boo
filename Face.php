@@ -106,10 +106,11 @@ class Face {
 			$srcs[] = $item['src'];	
 			Boo::unlink($item['file']);
 		}
+
 		
 
 		$srcs = array_values(array_unique($srcs));
-		
+	
 		foreach ($srcs as $src) {
 			if(!$src) $src = 'index.php';
 			Load::loadTEXT($src);
@@ -240,10 +241,10 @@ class Face {
 					if (!in_array($gid, $it['childgroups'])) $it['childgroups'][] = $gid;
 				});
 			}
+
 			foreach ($items as $k => $item) {
 				$paths = $items[$k]['paths'];
 				foreach ($paths as $i => $f) {
-					$save = true;
 					foreach ($paths as $s) {
 						if (strstr($s,$f) !== false && $f !== $s) {
 							//Нашли совпадение можно удалить
@@ -254,6 +255,7 @@ class Face {
 				}
 				$items[$k]['paths'] = $paths;
 			}
+			
 		
 
 			foreach($groups as $k => $gr) {
@@ -317,6 +319,7 @@ class Face {
 				}
 			}
 			if ($item) {
+
 				if (empty($item['src'])) {
 					$item['paths'] = [];
 					foreach ($item['childs'] as $cid) {
@@ -324,6 +327,7 @@ class Face {
 					}
 					$item['paths'] = array_values(array_unique($item['paths']));
 				}
+
 				$item['rel'] = array();
 				$item['rel']['path'] = $path;
 				$item['rel']['paths'] = [];
@@ -379,6 +383,7 @@ class Face {
 					$item['rel']['parents'] = array_values(array_unique($item['rel']['parents']));
 				}
 			}
+
 			return [$right, &$item, &$items, $path, $groups];
 		});
 		
