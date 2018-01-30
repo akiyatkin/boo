@@ -39,8 +39,8 @@ class Face {
 			$mytimer = 0;
 			$mysize = 0;
 		}
-
-		foreach ($item['childs'] as $cid) {
+		$childs = isset($item['rel'])? $item['rel']['childs']: $item['childs'];
+		foreach ($childs as $cid) {
 			//if (!in_array($path, $items[$cid]['parents'])) continue;
 			//if (!$path) $newpath = $cid;
 			//else $newpath = $path.'.'.$cid;
@@ -446,6 +446,7 @@ class Face {
 				$data['item']['timerch'] = 0;
 			}
 			if (!isset($data['item']['timer'])) { //Группы обновить без зависимостей
+				
 				foreach($data['item']['rel']['childs'] as $ch) {
 					$data['item']['timerch'] += $items[$ch]['timer'];
 				}
