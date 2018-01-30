@@ -260,5 +260,5 @@
 		{pointl:} <a title="Упростить путь" style="text-transform: none" href="/-boo/{item.id}">←</a> 
 		{point:} — 
 		{echotitle:}{title}{~last()|:point}
-{refreshlabel:}<div class="alert alert-success">Выполнено обновление!</div>
+{refreshlabel:}<div class="alert alert-success">Выполнено обновление! <a class="btn btn-xs btn-danger" href="refresh">Обновить ещё раз</a></div>
 {removelabel:}<div class="alert alert-success"><b>Кэш удалён!</b> Кэш будет создан при следующем обращении или обновлении.</div>
