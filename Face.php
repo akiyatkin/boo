@@ -421,6 +421,7 @@ class Face {
 				$data['timer'] += $it['timer'];
 				$data['size'] += Boo::filesize($it['file']);
 			}
+			
 			$data['size'] = round($data['size']/1000000,2);
 			$data['timer'] = round($data['timer'],2);
 		}

@@ -81,6 +81,7 @@ class Boo {
 						//Было обращение к кэшу и кэш переделывался
 						$items[$id]['timer'] = Boo::$items[$id]['timer'];
 						$items[$id]['time'] = Boo::$items[$id]['time'];
+						$items[$id]['file'] = Boo::$items[$id]['file'];
 						$items[$id]['src'] = Boo::$items[$id]['src'];
 						$items[$id]['group'] = Boo::$items[$id]['group']; //Разработка изменено название
 						$items[$id]['title'] = Boo::$items[$id]['title']; //Разработка изменено название
@@ -175,7 +176,7 @@ class Boo {
 		);
 		
 		//$item['parents'] = array();
-		$item['counter'] = 0;
+		
 		$item['title'] = $title;
 		$item['childs'] = array();
 		return $item;
@@ -193,7 +194,7 @@ class Boo {
 		if (!isset(Boo::$items[$id])) {
 			Boo::$items[$id] = &Boo::createItem($gid, $gtitle, $id, $title);
 		}
-		Boo::$items[$id]['counter']++;
+		
 
 		Boo::$parents[] = $id; //Для выхода
 		//$newpath = Sequence::short(Boo::$parents);
