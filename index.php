@@ -12,7 +12,7 @@ Access::debug(true);
 Config::get('timezone');
 
 return Rest::get( function () {
-		return Face::list();
+		return Face::list2();
 	}, 'test', function(){
 		
 		
@@ -54,7 +54,7 @@ return Rest::get( function () {
 		if ($action == 'remove') {
 			Face::remove($root, $option);
 		}
-		return Face::list($root, $action);
+		return Face::list2($root, $action);
 	}
 );
 

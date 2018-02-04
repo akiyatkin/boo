@@ -389,7 +389,7 @@ class Face {
 		
 	}
 	
-	public static function list($path = 'root', $action = false) {
+	public static function list2($path = 'root', $action = false) {
 
 		$data = array();
 		$data['layout'] = 'default';
