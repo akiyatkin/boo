@@ -203,6 +203,29 @@ class Face {
 		
 		return $res;
 	}
+    public static function run(&$items, $root, $fn, $level = 1) {
+        //Есть разница между первым упоминанием и вторым. Merge всегда к концу делается аналогично
+        $right = Sequence::right($root);
+        $item = &$items[$right[sizeof($right) - 1]];
+        $fn($item, $root, $level);
+        foreach ($item['childs'] as $id) {
+            $newpath = Sequence::short(array_merge($right, [$id]));
+
+            Face::run($items, $newpath, $fn, $level +1);
+        }
+    }
+    public static function runGroups(&$items, $root, $fn, $level = 1) {
+        //Есть разница между первым упоминанием и вторым. Merge всегда к концу делается аналогично
+        $right = Sequence::right($root);
+        $item = &$items[$right[sizeof($right) - 1]];
+        $fn($item, $root, $level);
+
+        foreach ($item['childgroups'] as $id) {
+            $newpath = Sequence::short(array_merge($right, [$id]));
+
+            Face::runGroups($items, $newpath, $fn, $level +1);
+        }
+    }
 	public static function init($path = 'root') {
 		return Once::exec('boo-face-init', function () use ($path){
 			$src = Boo::$conf['cachedir'].'.tree.json';
@@ -227,7 +250,7 @@ class Face {
 			}
 
 			foreach ($items as $item) {
-				Boo::run($items, $item['id'], function(&$it, $path) use ($items) {
+				Face::run($items, $item['id'], function(&$it, $path) use ($items) {
 					if(empty($it['paths'])) $it['paths'] = array();
 					if(empty($it['parents'])) $it['parents'] = array();
 					if(empty($it['childgroups'])) $it['childgroups'] = array();
@@ -259,7 +282,7 @@ class Face {
 		
 
 			foreach($groups as $k => $gr) {
-				Boo::runGroups($groups, $k, function(&$it, $path) use ($groups) {
+				Face::runGroups($groups, $k, function(&$it, $path) use ($groups) {
 					//if (empty($it['paths'])) $it['paths'] = array();
 					if (empty($it['parentgroups'])) $it['parentgroups'] = array();
 					if (empty($it['parents'])) $it['parents'] = array();

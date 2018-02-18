@@ -3,7 +3,7 @@
 	"homepage":"https://github.com/akiyatkin/boo",
 	"description":"Серверное кэширование с ручным избирательным обновлением",
 	"autoload": {
-		"psr-4": { "akiyatkin\\boo\\": "" }
+		"psr-4": { "akiyatkin\\boo\\src\\": "" }
 	},
 	"require":{
 		"infrajs/path":"~1",

@@ -239,7 +239,7 @@
 {timeinfoitem:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
-		Размер вмесе с зависимостями: <b>{size} Мб</b><br>
+		Размер вместе с зависимостями: <b>{size} Мб</b><br>
 		Группа: <a href="/-boo/{item.group.id}" class="group">{item.group.title}</a><br>
 		Адрес создания: <a href="/{item.src}">{item.src}</a><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
@@ -247,7 +247,7 @@
 {timeinfogroup:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
-		Размер вмесе с зависимостями: <b>{size} Мб</b><br>
+		Размер вместе с зависимостями: <b>{size} Мб</b><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/?-boo={path}">?-boo={path}</a><br>
 	</div>
 {groups:}
