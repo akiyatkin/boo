@@ -1,5 +1,5 @@
 <?php
-use akiyatkin\boo;
+namespace akiyatkin\boo;
 
 class Once extends Hierarchy
 {

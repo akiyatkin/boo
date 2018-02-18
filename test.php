@@ -1,5 +1,4 @@
 <?php
-
 use akiyatkin\boo\Hierarchy;
 
 
