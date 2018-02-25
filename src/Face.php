@@ -2,12 +2,10 @@
 namespace akiyatkin\boo;
 
 use infrajs\rest\Rest;
-use akiyatkin\boo\Boo;
-use akiyatkin\boo\Face;
 use infrajs\ans\Ans;
 use infrajs\load\Load;
+use akiyatkin\fs\FS;
 use infrajs\path\Path;
-use infrajs\once\Once;
 use infrajs\access\Access;
 use infrajs\sequence\Sequence;
 
@@ -25,36 +23,22 @@ class Face {
 		return array_keys($parents);
 	}
 	public static function getTime($item, $items) {
-
-		//if (isset($item['src'])) return [$item['timer'], $item['time']];
-		
-		//if (isset($childs[$path])) return [0,0];
-		//$childs[$path] = true;
-		if (isset($item['timer'])) {
-			$mytime = $item['time'];
-			$mytimer = $item['timer'];
-			$mysize = Boo::filesize($item['file']);
+		if (isset($item['exec']['time'])) {
+			$mytime = $item['exec']['time'];
 		} else {
 			$mytime = 0;
-			$mytimer = 0;
-			$mysize = 0;
 		}
 		$childs = isset($item['rel'])? $item['rel']['childs']: $item['childs'];
 		foreach ($childs as $cid) {
-			//if (!in_array($path, $items[$cid]['parents'])) continue;
-			//if (!$path) $newpath = $cid;
-			//else $newpath = $path.'.'.$cid;
-			list($timer, $time, $size) = Face::getTime($items[$cid], $items);
+			$time = Face::getTime($items[$cid], $items);
 			if (!$time) continue;
-			$mytimer += $timer;
-			$mysize += $size;
 			if (!$mytime || $mytime < $time) $mytime = $time;
 		}
-		return [$mytimer, $mytime, $mysize];
+		return $mytime;
 	}
 	public static function findAllChilds($item, $items, &$childs = array()) {
 		$right = $item['id'];
-		if (isset($childs[$item['id']])) return;
+		if (isset($childs[$item['id']])) return array();
 		$childs[$item['id']] = true;
 	
 		foreach ($item['childs'] as $id) {
@@ -72,7 +56,7 @@ class Face {
 		return array_keys($childs);
 
 	}
-	public static function search($path, $option = 'one') {
+	public static function search($path, $deep = false) {
 		list($right, $item, $items, $path) = Face::init($path);
 		if ($path == 'root') {
 			return array_keys($items);
@@ -80,59 +64,56 @@ class Face {
 			if (!$item) return array();
 		}
 		$childs = array();
-		if (isset($item['src'])) {
+		if ($item['type'] != 'group') {
 			$childs[$item['id']] = true;
 		}
-		if ($option == 'deep') {
+		if ($deep) {
 			Face::findAllMyChilds($item['rel']['childs'], $items, $childs);	
-		} else if(!isset($item['src'])) { //Если группа
+		} else if($item['type'] == 'group') { //Если группа
 			foreach ($item['rel']['childs'] as $ch) {
 				$childs[$ch] = true;
 			}
 		}
-		$parents = $item['rel']['parents'];
+		$parents = array();
+		foreach($childs as $cid => $v) {
+			$parents += $items[$cid]['parents'];
+		}
+		$parents += $item['rel']['parents'];
 		$childs = array_unique(array_merge($parents,array_keys($childs)));
 		
 		return $childs;
 	}
-	public static function refresh($path, $option = 'one') {
+	public static function refresh($path, $deep) {
 		list($right, $item, $items, $path) = Face::init($path);
-		$childs = Face::search($path, $option);
+		$childs = Face::search($path, $deep);
 		
 		$srcs = array();
 		
 		foreach ($childs as $v) {
 			$item = $items[$v];
-			$srcs[] = $item['src'];	
-			Boo::unlink($item['file']);
+			$srcs[] = $item['src'];
+			Once::removeResult($item);
 		}
-
-		
-
 		$srcs = array_values(array_unique($srcs));
-	
 		foreach ($srcs as $src) {
 			if(!$src) $src = 'index.php';
 			Load::loadTEXT($src);
 		}
 
-		Boo::initSave();
+		Once::initSave();
 
-		Boo::$proccess = false;
-		$src = Boo::$conf['cachedir'].'.tree.json';
+		Once::$proccess = false;
+		$src = Once::getTreeSrc();
 		Load::unload($src);
 		$src = Path::resolve($src);
-		Once::clear('boo-face-init');
-		clearstatcache($src);
+		//Once::clear('boo-face-init');
+		//clearstatcache($src);
 	}
-	public static function remove($path, $option = 'one') {
+	public static function remove($path, $deep = false) {
 		list($right, $item, $items, $path) = Face::init($path);
-
-		$childs = Face::search($path, $option);
-		
+		$childs = Face::search($path, $deep);
 		foreach ($childs as $v) {
-			$it = $items[$v];
-			Boo::unlink($it['file']);
+			Once::removeResult($items[$v]);
 		}
 	}
 	//root - Группа1 - Кэш1 - Группа2 - Кэш2
@@ -227,28 +208,32 @@ class Face {
         }
     }
 	public static function init($path = 'root') {
-		return Once::exec('boo-face-init', function () use ($path){
-			$src = Boo::$conf['cachedir'].'.tree.json';
-			$items = Boo::file_get_json($src);
-			if (!$items) $items = Boo::$items;
-			
+		return Once::exec(function () use ($path){
+			$src = Once::getTreeSrc();
+			$items = FS::file_get_json($src);
+			//if (!$items) $items = Once::$items;
 			$groups = [];
-			foreach ($items as $item) {
-				if (!isset($groups[$item['group']['id']])) {
-					$groups[$item['group']['id']] = $item['group'];
-					$groups[$item['group']['id']]['type'] = 'group';
-					$groups[$item['group']['id']]['childs'] = array();
-					$groups[$item['group']['id']]['childgroups'] = array();
+			foreach ($items as $k => $item) {
+				if (!isset($groups[$item['gid']])) {
+					$groups[$item['gid']] = array(
+						'id' => $item['gid'],
+						'title' => $item['gtitle']
+					);
+					$groups[$item['gid']]['exec'] = array();
+					$groups[$item['gid']]['type'] = 'group';
+					$groups[$item['gid']]['isgroup'] = true;
+					$groups[$item['gid']]['childs'] = array();
+					$groups[$item['gid']]['childgroups'] = array();
 				}
-				$groups[$item['group']['id']]['childs'][] = $item['id'];
+				$groups[$item['gid']]['childs'][] = $item['id'];
 				foreach ($item['childs'] as $sub) {
-					$groups[$item['group']['id']]['childgroups'][$items[$sub]['group']['id']] = true;
+					$groups[$item['gid']]['childgroups'][$items[$sub]['gid']] = true;
 				}
 			}
+
 			foreach($groups as $k => $gr) {
 				$groups[$k]['childgroups'] = array_values(array_unique(array_keys($groups[$k]['childgroups'])));
 			}
-
 			foreach ($items as $item) {
 				Face::run($items, $item['id'], function(&$it, $path) use ($items) {
 					if(empty($it['paths'])) $it['paths'] = array();
@@ -260,11 +245,10 @@ class Face {
 					if (sizeof($right) < 2) return;
 					$pid = $right[sizeof($right) - 2];
 					if (!in_array($pid, $it['parents'])) $it['parents'][] = $pid;
-					$gid = $items[$pid]['group']['id'];
+					$gid = $items[$pid]['gid'];
 					if (!in_array($gid, $it['childgroups'])) $it['childgroups'][] = $gid;
 				});
 			}
-
 			foreach ($items as $k => $item) {
 				$paths = $items[$k]['paths'];
 				foreach ($paths as $i => $f) {
@@ -278,9 +262,6 @@ class Face {
 				}
 				$items[$k]['paths'] = $paths;
 			}
-			
-		
-
 			foreach($groups as $k => $gr) {
 				Face::runGroups($groups, $k, function(&$it, $path) use ($groups) {
 					//if (empty($it['paths'])) $it['paths'] = array();
@@ -307,26 +288,9 @@ class Face {
 				$id = false;
 				$item = false;
 			} else {
-				/*
-					$path некий путь. Ищется
-					На странице показывается
-					
-					path - способы обращения к текущему адресу и группы и кэша
-					childs - зависимый кэш
-					groups - вложенные группы
-
-					parents - родители кэш
-					parentgroups - родители группы
-
-					
-					dependencies - зависимый кэш не совпадающий с текущим path
-
-
-
-
-				*/
 				$right = Sequence::right($path);
 				$id = $right[sizeof($right) - 1];
+
 				if (isset($groups[$id])) {
 					$item = $groups[$id];
 					
@@ -341,9 +305,9 @@ class Face {
 					
 				}
 			}
-			if ($item) {
 
-				if (empty($item['src'])) {
+			if ($item) {
+				if ($item['type'] == 'group') {
 					$item['paths'] = [];
 					foreach ($item['childs'] as $cid) {
 						$item['paths'] = array_merge($item['paths'], $items[$cid]['paths']);
@@ -354,10 +318,6 @@ class Face {
 				$item['rel'] = array();
 				$item['rel']['path'] = $path;
 				$item['rel']['paths'] = [];
-
-				
-				
-				
 
 				$childs = array();
 				foreach($item['paths'] as $p) {
@@ -375,7 +335,7 @@ class Face {
 				
 					foreach ($pr as $k => $rid) {
 						if (isset($groups[$ir[$i]])) {
-							$e = ($items[$rid]['group']['id'] == $ir[$i]);
+							$e = ($items[$rid]['gid'] == $ir[$i]);
 						} else {
 							$e = ($ir[$i] == $rid);
 						}
@@ -394,11 +354,9 @@ class Face {
 				//print_r($item['childgroups']);
 				//exit;
 				$item['rel']['childs'] = array_values(array_unique($childs));
-				if (isset($item['src'])) {
+				if ($item['type'] != 'group') {
 					$item['rel']['parents'] = $item['parents'];
-
 				} else {
-					
 					$item['rel']['parents'] = [];
 					foreach($item['rel']['childs'] as $cid) {
 						$item['rel']['parents'] = array_merge($item['rel']['parents'], $items[$cid]['parents']);
@@ -411,8 +369,15 @@ class Face {
 		});
 		
 	}
-	
-	public static function list2($path = 'root', $action = false) {
+	public static function getClearTimer($item, $items) {
+		$timer = 0;
+		foreach ($item['childs'] as $sub) {
+			$timer += $items[$sub]['exec']['timer'];
+		}
+		$timer = $item['exec']['timer'] - $timer;
+		return $timer;
+	}
+	public static function index($path = 'root', $action = false) {
 
 		$data = array();
 		$data['layout'] = 'default';
@@ -422,80 +387,88 @@ class Face {
 
 		list($right, $item, $items, $path, $groups) = Face::init($path);
 
-		$data['item'] = $item;
+
+		$data['item'] = &$item;
 		$data['right'] = $right;
 		$data['groups'] = $groups;
 		$data['items'] = $items;
-		
+
 		if ($path == 'root') { 
 			$data['layout'] = 'root';
 		}
 		if ($item['type'] == 'group') {
 			$data['layout'] = 'group';
 		}
-		
 
-		if ($path == 'root') { //Общее время всего кэша
-			$data['time'] = 0;
-			$data['timer'] = 0;
-			$data['size'] = 0;
-			foreach ($items as $it) {
-				if ($data['time'] < $it['time']) $data['time'] = $it['time'];
-				$data['timer'] += $it['timer'];
-				$data['size'] += Boo::filesize($it['file']);
-			}
-			
-			$data['size'] = round($data['size']/1000000,2);
-			$data['timer'] = round($data['timer'],2);
-		}
-		
 		if ($path != 'root' && !$item) {
 			$data['result'] = 0;
 			if ($data['msg']) $data['msg'] .= '<br>';
 			$data['msg'] .= 'Группа кэша не найдена';
 		} else {
 			$data['result'] = 1;
-			$data['item'] = $item;
 		}
-		
 		if (sizeof($data['right']) > 1) {
 			$data['parent'] = $data['right'][sizeof($data['right']) - 2];
 		}
-		if ($data['item']) {
-			list($timer, $time, $size) = Face::getTime($data['item'], $items);
-			
-			if (isset($data['item']['timer'])) {
-				$data['item']['timerch'] = $data['item']['timer'];
-			} else {
-				$data['item']['timerch'] = 0;
-			}
-			if (!isset($data['item']['timer'])) { //Группы обновить без зависимостей
-				
-				foreach($data['item']['rel']['childs'] as $ch) {
-					$data['item']['timerch'] += $items[$ch]['timer'];
-				}
-			}
-			$data['item']['timerch'] = round($data['item']['timerch'],2);
-			
-			$data['item']['timer'] = round($timer,2);
-			$data['item']['time'] = $time;
-			$data['item']['size'] = round($size/1000000,2);
 
-			if (isset($data['item']['src'])) {
-					
-				$d = Boo::file_get_json($data['item']['file']);
-				if (!$d) {
-					$data['remove'] = true;
-				} else {
-					$data['item']['result'] = $d['result'];
-					$data['item']['args'] = $d['args'];
-				}
-				
-			} else {
+		if ($path == 'root') { //Общее время всего кэша
+			$data['exec'] = array();
+			$data['pathsrc'] = '?-boo=root';
+			$data['exec']['time'] = 0;
+			foreach ($items as $it) {
+				if (empty($it['exec']['time'])) continue;
+				if ($it['parents']) continue;
+				if ($data['exec']['time'] < $it['exec']['time']) $data['exec']['time'] = $it['exec']['time'];
+			}
+
+			$childs = Face::search($path, false);
+			$timer = 0;
+			foreach($childs as $cid) {
+				$timer += Face::getClearTimer($items[$cid], $items);
+			}
+			$data['exec']['timer'] = $timer;
+			$data['exec']['timer'] = round($data['exec']['timer'],2);
+		} else if ($data['item']) {
+			$time = Face::getTime($data['item'], $items);
+			$data['item']['exec']['time'] = $time;
+
+			$childs = Face::search($path, false);
+			$timer = 0;
+			foreach($childs as $cid) {
+				$timer += Face::getClearTimer($items[$cid], $items);
+			}
+			$data['item']['exec']['timerch'] = $timer;
+
+
+			$childs = Face::search($path, true);
+			$timer = 0;
+			foreach($childs as $cid) {
+				$timer += Face::getClearTimer($items[$cid], $items);
+			}
+			$data['item']['exec']['timer'] = $timer;
+
+			$data['item']['exec']['timerch'] = round($data['item']['exec']['timerch'],2);
+			$data['item']['exec']['timer'] = round($data['item']['exec']['timer'],2);
+
+
+			if ($data['item']['type'] == 'group') {
 				if ($path) $data['pathforgroup'] = $path.'.';
 				else $data['pathforgroup'] = '';
+				foreach ($data['item']['rel']['childs'] as $cid) {
+					$src = $items[$cid]['src'];
+					break;
+				}
+			} else {
+				$src = $data['item']['src'];
 			}
-			
+
+			if (preg_match("/\?/", $src)) {
+				$data['item']['pathsrc'] = $src.'&';
+			} else {
+				$data['item']['pathsrc'] = $src.'?';
+			}
+			$data['item']['pathsrc'] .= '-boo='.$data['path'];
+
 			foreach ($data['item']['rel']['paths'] as $k => $parpath) {
 				$active = ($path == $parpath);
 				$data['item']['rel']['paths'][$k] = Face::makePath($parpath, $data, $active);
@@ -510,8 +483,6 @@ class Face {
 			}
 		}
 
-		
-		
 		$html = Rest::parse('-boo/layout.tpl', $data, 'LIST');
 		
 		Ans::html($html);

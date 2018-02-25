@@ -1,6 +1,6 @@
 <?php
 
+namespace akiyatkin\boo;
 use infrajs\path\Path;
-use akiyatkin\boo\Boo;
 
-Path::mkdir(Boo::$conf['cachedir']);
+Path::mkdir(Once::$conf['cachedir']);

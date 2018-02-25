@@ -1,5 +1,5 @@
 {
-	"conf2":"akiyatkin\\boo\\Cache",
+	"conf":"akiyatkin\\boo\\Once",
 	"cachedir":"!boo/",
 	"update":"update.php",
 	"require":"infra.php"
