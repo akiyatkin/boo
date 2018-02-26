@@ -32,6 +32,19 @@ class Cache extends Once
         $data = FS::file_get_json($file);
         return $data;
     }
+    public static function getDurationTime($strtotime) {
+        /*
+            -1 month
+            -1 day
+            -1 week
+            last Monday
+            last month
+            last day
+            last week
+            last friday
+        */
+        return strtotime($strtotime);
+    }
     public static function getModifiedTime($conds = array()) {
         if (!sizeof($conds)) return 0;//Если нет conds кэш навсегда и develop не поможет
         $time = 0;
