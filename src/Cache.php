@@ -32,6 +32,30 @@ class Cache extends Once
         $data = FS::file_get_json($file);
         return $data;
     }
+    public static function getModifiedTime($conds = array()) {
+        if (!sizeof($conds)) return 0;//Если нет conds кэш навсегда и develop не поможет
+        $time = 0;
+        for ($i = 0, $l = sizeof($conds); $i < $l; $i++) {
+            $mark = $conds[$i];
+            $mark = Path::theme($mark);
+            if (!$mark) continue;
+            $m = filemtime($mark);
+            if ($m > $time) {
+                $time = $m;
+            }
+
+            if (!is_dir($mark)) {
+                continue;
+            }
+            foreach (glob($mark.'*.*') as $filename) {
+                $m = filemtime($filename);
+                if ($m > $time) {
+                    $time = $m;
+                }
+            }
+        }
+        return $time;
+    }
     public static function execfn(&$item, $fn)
     {
 		$item['exec']['time'] = time();

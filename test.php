@@ -5,20 +5,30 @@ use infrajs\access\Access;
 
 Access::test(true);
 
-function test(){
-	Cache::exec('Тест', function() {
+function &test () {
+	$r = &Cache::exec('Тест', function () {
+		echo 1;
 		usleep(0.5*1000000);
-	});
+		return array('test');
+	}, array(), ['akiyatkin\boo\Cache','getModifiedTime'], array());
+	return $r;
 }
 
-Cache::exec('Проверка1', function() {
+
+
+$r = &test();
+$r['wow'] = true;
+
+$rr = &test();
+	
+print_r($rr);
+exit;
+
+/*Cache::exec('Проверка2', function() {
 	usleep(0.5 * 1000000);
 	test();
 });
-Cache::exec('Проверка2', function() {
-	usleep(0.5 * 1000000);
-	test();
-});
+*/
 /*Cache::exec('Проверка',function() {
 	usleep(0.5*1000000);
 	test();
@@ -46,6 +56,6 @@ Cache::exec('Проверка', function() {
 	},array('ТестБлог'));
 });*/
 
-echo '<pre>';
+/*echo '<pre>';
 echo '<hr>';
-print_r(Once::$items);
+print_r(Once::$items);*/

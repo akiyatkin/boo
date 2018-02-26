@@ -3,6 +3,7 @@ namespace akiyatkin\boo;
 use infrajs\path\Path;
 use infrajs\nostore\Nostore;
 use akiyatkin\fs\FS;
+use infrajs\access\Access;
 
 class Once
 {
@@ -16,21 +17,37 @@ class Once
 		'cachedir' => '!boo/'
 	);
 	public static $proccess = false;
-
-	public static function &createItem($args, $gtitle = null)
+	public static $conds = array();
+	public static function &getCond($cond, $condargs) {
+		$r = null;
+		if (!$cond) return $r;
+		$hash = Path::encode(json_encode($cond,JSON_UNESCAPED_UNICODE).':'.json_encode($condargs,JSON_UNESCAPED_UNICODE));
+		if (empty(Once::$conds[$hash])) Once::$conds[$hash] = array(
+			'fn' => $cond,
+			'hash' => $hash,
+			'args' => $condargs
+		);
+		return Once::$conds[$hash];
+	}
+	public static function &createItem($gtitle = false, $args = array(), $cond = array(), $condargs = array(), $level = 0)
 	{
-		list($gid, $id, $title, $hash, $fn) = static::hash($args, 4);
+		$level++;
+		list($gid, $id, $title, $hash, $fn) = static::hash($args, $level);
 		if (isset(Once::$items[$id])) return Once::$items[$id];
 		$item = array();
 		$item['type'] = static::$type;
 		$item['cls'] = static::$type;
+		$item['cond'] = $cond;
+		$item['condargs'] = $condargs;
 		$item['fn'] = $fn;
+		
 		$item['args'] = $args;
 		$item['id'] = $id;
 		$item['hash'] = $hash;
-		$item['exec'] = array();
+		
 		$item['gid'] = $gid;
 		if (!$gtitle) $gtitle = $fn;
+		else $item['gid'] = Path::encode($gtitle.'-'.$item['gid']);
 		$item['gtitle'] = $gtitle;
 		$item['src'] = static::getSrc();
 		if (sizeof($args) == 0) {
@@ -38,18 +55,29 @@ class Once
 		} else {
 			$item['title'] = $title;
 		}
-
+		
 		$item['childs'] = array();
-		static::checkResult($item);
+
+
+		$data = static::loadResult($item);
+		if (!$data) {
+			Once::initExecConds($item);
+		} else {
+			$item['exec'] = $data['exec'];
+			foreach($item['exec']['conds'] as $k=>$c) {
+				$item['exec']['conds'][$k] = &Once::getCond($c['fn'], $c['args'], $c['hash']);
+			}
+		}
+
 		Once::$items[$id] = &$item;
 		return $item;
 	}
-	public static function checkResult(&$item) {
-		$data = static::loadResult($item);
-		if (!$data) return;
-		$item['exec'] = $data['exec'];
+	public static function initExecConds(&$item){
+		if(empty($item['exec'])) $item['exec'] = array();
+		$item['exec']['conds'] = array();
+		$cond = &Once::getCond($item['cond'], $item['condargs']);
+		if ($cond) $item['exec']['conds'][$cond['hash']] = &$cond;	
 	}
-
 	public static function getItem(){
 		return static::$item;
 	}
@@ -80,13 +108,13 @@ class Once
 	 * @param int $level
 	 * @return array
 	 */
-	public static function hash($args = array(), $level = 1)
+	public static function hash($args = array(), $level = 0)
 	{
 		$hash = Path::encode(json_encode($args,JSON_UNESCAPED_UNICODE));
 
-		$callinfos = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $level + 1);
-		$callinfo = $callinfos[$level - 1];
-		$fn = Path::encode($callinfos[$level]['function']);
+		$callinfos = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, $level + 3);
+		$fn = Path::encode($callinfos[$level+2]['function']);
+		$callinfo = $callinfos[$level+1];
 		$path = $callinfo['file'];
 		$src = realpath('.');
 		$path = str_replace($src . DIRECTORY_SEPARATOR, '', $path);
@@ -117,22 +145,11 @@ class Once
 		Once::$item['title'] = $title;
 	}
 
-	public static function &start($args, $gtitle = null)
-	{
-		$item = &static::createItem($args, $gtitle);
-		if (!Once::$item) {
-			Once::$childs[] = $item['id'];
-		} else {
-			Once::$item['childs'][] = $item['id'];
-		}
-		Once::$parents[] = $item['id'];
-		Once::$item = &$item;
-		return $item;
-	}
-
+	
+	public static $lastid = false;
 	public static function end()
 	{
-		array_pop(Once::$parents);
+		Once::$lastid = array_pop(Once::$parents);
 		if (sizeof(Once::$parents)) {
 			Once::$item = &Once::$items[Once::$parents[sizeof(Once::$parents) - 1]];
 		} else {
@@ -141,10 +158,11 @@ class Once
 		}
 	}
 
-	final public static function omit($gtitle, $args = array())
+	final public static function omit($gtitle, $args = array(), $level = 0)
 	{
-		$item = &static::start($args, $gtitle);
-		if (!$item['exec']) {
+		$level++;
+		$item = &static::start($gtitle, $args, $cond, $condargs, $level);
+		if (empty($item['exec']['ready']) || Once::isChange($item)) {
 			$item['exec']['ready'] = true;
 			return false;
 		}
@@ -152,15 +170,68 @@ class Once
 		static::end();
 		return true;
 	}
-    public static function exec($gtitle, $fn = array(), $args = array())
-    {
-    	if (!is_string($gtitle)) { //Перегрузка функции
-    		$args = $fn;
-    		$fn = $gtitle;
-    		$gtitle = false;
+	public static function once($fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
+		$gtitle = false;
+		$level++;
+		return Once::exec($gtitle, $fn, $args, $cond, $condargs, $level);
+	}
+	public static function &amponce($fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
+		$gtitle = false;
+		$level++;
+		return Once::ampexec($gtitle, $fn, $args, $cond, $condargs, $level);
+	}
+	public static function &ampexec($gtitle, $fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
+		$level++;
+		static::exec($gtitle, $fn, $args, $cond, $condargs, $level, $items);
+		return $items[0]['exec']['result'];
+	}
+	public static function isChange(&$item) {
+		if ($item['type'] == 'Once') return false;
+		$atime = Access::adminTime();
+		if ($atime <= $item['exec']['time'] && !Access::isDebug()) return false;
+		foreach($item['exec']['conds'] as &$cond) {
+			if (!isset($cond['time'])) {
+				$cond['time'] = call_user_func_array($cond['fn'], $cond['args']);
+			}
+			if ($cond['time'] > $item['exec']['time']) return true;
 		}
-        $item = &static::start($args, $gtitle);
-        if (!$item['exec']) {
+		return false;
+	}
+	public static function &start($gtitle = false, $args = array(), $cond = array(), $condargs = array(), $level = 0)
+	{
+		$level++;
+		$item = &static::createItem($gtitle, $args, $cond, $condargs, $level);
+		
+		if (Once::$item) {
+			Once::$item['childs'][] = $item['id'];
+		} else {
+			Once::$childs[] = $item['id'];
+		}
+
+		
+
+		Once::$parents[] = $item['id'];
+		Once::$item = &$item;
+		return $item;
+	}
+	public static function debug(){
+		echo 'Cache::debug'.'<br>'."\n";
+		echo 'path: '.implode(', ',Once::$parents).'<br>'."\n";
+		echo 'childs: '.implode(', ',Once::$item['childs']).'<br>'."\n";
+	}
+	public static function lastId () {
+		echo Once::$lastid;
+	}
+    public static function &exec($gtitle, $fn, $args = array(), $cond = array(), $condargs = array(), $level = 0, &$origitem = array())
+    {	
+    	$level = $level++;
+        $item = &static::start($gtitle, $args, $cond, $condargs, $level);
+        $origitem[0] = &$item;
+        $execute = empty($item['exec']['ready']) || Once::isChange($item);
+        if ($execute) {
+            $item['exec']['ready'] = true;
+            Once::initExecConds($item);
+
             $item['exec']['result'] = null;
             $item['exec']['timer'] = microtime(true);
 			$r = static::execfn($item, $fn);
@@ -169,9 +240,17 @@ class Once
 				static::$proccess = true;
 				static::saveResult($item);
 			}
-			static::end();
-        } else {
-			static::end();
+        }
+		static::end();
+
+		if (Once::$item) {
+			//Кэш не выполнялся из-за старого условия. После изменения условия он всё равно не выполяется. Должен меняться id.
+			foreach ($item['exec']['conds'] as $h => $conds) {
+				Once::$item['exec']['conds'][$h] = &$item['exec']['conds'][$h];
+			}
+		}
+
+		if (!$execute) {
 			if (Once::$item) Once::$item['exec']['timer'] -= $item['exec']['timer'];
 		}
 
@@ -217,31 +296,14 @@ class Once
 				if (Once::$items[$cid]['type'] != 'Once') continue;
 				unset($v['childs'][$k]);
 			}
-			unset($v['exec']['result']);
-			if (!isset($items[$id])) {
-				$v['childs'] = array_values(array_unique($v['childs']));
-			} else {
-				$v['childs'] = array_values(array_unique(array_merge($v['childs'],$items[$id]['childs'])));
-			}
+			unset($v['exec']['result']); //Удалили результат, что бы файл был не таким большим, но статистку выполнения оставили ['exec']['time']
+			
+			$v['childs'] = array_values(array_unique($v['childs']));
 			$items[$id] = $v;
 		}
 		FS::file_put_json($src, $items);
 
         return $items;
-    }
-
-
-    public static $re = false;
-    public static function isre($id) {
-        if (Once::$re === true) {
-            return true;
-        } else {
-            if (!is_array(Once::$re)) {
-                if (isset($_GET['-boo'])) Once::$re = explode(',',$_GET['-boo']);
-                else return false;
-            }
-        }
-        return in_array($id, Once::$re);
     }
 }
 

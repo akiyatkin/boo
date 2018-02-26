@@ -208,7 +208,7 @@ class Face {
         }
     }
 	public static function init($path = 'root') {
-		return Once::exec(function () use ($path){
+		return Cache::once(function () use ($path){
 			$src = Once::getTreeSrc();
 			$items = FS::file_get_json($src);
 			//if (!$items) $items = Once::$items;
@@ -350,9 +350,6 @@ class Face {
 						}
 					}
 				}
-				//echo '<pre>';
-				//print_r($item['childgroups']);
-				//exit;
 				$item['rel']['childs'] = array_values(array_unique($childs));
 				if ($item['type'] != 'group') {
 					$item['rel']['parents'] = $item['parents'];

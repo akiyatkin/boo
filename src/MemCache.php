@@ -7,20 +7,20 @@ use infrajs\each\Each;
 use infrajs\hash\Hash;
 use infrajs\sequence\Sequence;
 use League\Flysystem\Adapter\Local;
-use infrajs\mem\Mem as M;
+use infrajs\mem\Mem;
 
-class Mem extends Cache
+class MemCache extends Cache
 {
-    public static $type = 'Mem';
+    public static $type = 'MemCache';
     public static function saveResult($item) {
         $strdata = json_encode($item);
-		M::set('boo-' . $item['id'], $strdata);
+		Mem::set('boo-' . $item['id'], $strdata);
     }
 	public static function removeResult($item){
-		M::delete('boo-' . $item['id']);
+		Mem::delete('boo-' . $item['id']);
 	}
     public static function loadResult($item) {
-		$strdata = M::get('boo-' . $item['id']);
+		$strdata = Mem::get('boo-' . $item['id']);
 		$data = json_decode($strdata,true);
 		return $data;
     }
