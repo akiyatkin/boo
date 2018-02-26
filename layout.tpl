@@ -74,7 +74,7 @@
 		  <!-- Вкладки панелей -->  
 		  <div class="tab-content">
 		    <div role="tabpanel" class="tab-pane active" id="args">{~length(args)?~print(args)?:strno}</div>
-		    <div role="tabpanel" class="tab-pane" id="res">{~print(result)}</div>
+		    <div role="tabpanel" class="tab-pane" id="res">{~print(exec.result)}</div>
 		  </div>
 
 		</div>

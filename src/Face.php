@@ -299,6 +299,8 @@ class Face {
 					$id = $right[sizeof($right) - 1];
 					if (isset($items[$id])) {
 						$item = $items[$id];
+						$data = Once::loadResult($item);
+						if ($data) $item['exec'] = $data['exec'];
 					} else {
 						$item = false;
 					}
