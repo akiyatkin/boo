@@ -88,7 +88,7 @@ class Once
 
 	}
 	public static function setBooTime() {
-		$sys = Config::load('!.infra.json');
+		$sys = FS::file_get_json('!.infra.json');
 		if (!isset($sys['boo'])) $sys['boo'] = array();
 		$sys['boo']['time'] = time();
 		Once::$conf['time'] = $sys['boo']['time'];
@@ -259,12 +259,12 @@ class Once
 			$item['exec']['timer'] += $t;
 			$item['exec']['end'] = true;
 			if ($r) {
-				if (Once::isSave($item)) static::$proccess = true;
+				if (Once::isSave($item)) Once::$proccess = true;
 			}
         }
 		static::end();
 
-		if (static::$proccess) { //Если вообще хоть кто-то выполнялся иначе был кэш с сохранёнными conds
+		if (Once::$proccess) { //Если вообще хоть кто-то выполнялся иначе был кэш с сохранёнными conds
 			$parents = array_reverse(Once::$parents); //От последнего вызова
 			foreach ($parents as $pid) {
 				foreach ($item['exec']['conds'] as $hash) {
@@ -351,9 +351,10 @@ class Once
     	$src = Once::getItemsSrc();
 		$items = FS::file_get_json($src);
 		
+		Once::initConds();
 		$condssrc = Once::getCondsSrc();
-		foreach (Once::$conds as &$cond) unset($cond['time']);
-		FS::file_put_json(Once::$conf['cachedir'].'.conds.json', Once::$conds);
+		foreach (Once::$conds as $t => $cond) unset(Once::$conds[$t]['time']);
+		FS::file_put_json($condssrc, Once::$conds);
 
 		foreach (Once::$items as $id => $v) {	
 			for ($k = 0; $k < sizeof($v['exec']['childs']); $k++ ) {
@@ -379,7 +380,8 @@ class Once
     public static function initConds () {
     	if (Once::$condsready) return;
     	Once::$condsready = true;
-    	$conds = FS::file_get_json(Once::$conf['cachedir'].'.conds.json');
+    	$src = Once::getCondsSrc();
+    	$conds = FS::file_get_json($src);
     	Once::$conds = array_merge($conds, Once::$conds);
     }
     public static function init () {
@@ -393,8 +395,10 @@ class Once
 			Once::$item['exec']['end'] = true;
 			Once::$item['exec']['timer'] += microtime(true) - $t;
 		    chdir(Once::$cwd);
+		    
 		    if (Once::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
 		        $error = error_get_last();
+		        
 		        //E_WARNING - неотправленное письмо mail при неправильно настроенном сервере
 				if (is_null($error) || ($error['type'] != E_ERROR
 		                && $error['type'] != E_PARSE
