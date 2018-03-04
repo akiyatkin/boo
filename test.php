@@ -2,27 +2,74 @@
 namespace akiyatkin\boo;
 
 use infrajs\access\Access;
+use infrajs\event\Event;
 
 Access::test(true);
 
-function &test () {
-	$r = &Cache::exec('Тест', function () {
-		echo 1;
-		usleep(0.5*1000000);
-		return array('test');
-	}, array(), ['akiyatkin\boo\Cache','getModifiedTime'], array());
-	return $r;
+MemCache::exec('MemCache', function () {
+	echo 'MemCache';
+});
+HiddenMemCache::exec('HiddenCache', function () {
+	echo 'HiddenCache';
+});
+
+
+
+//fire Запоминает Once::$item и временно восстанавливает его при последующих подписках
+/*function test() {
+	Cache::exec('test', function () {
+		sleep(1);
+	}, array(), ['akiyatkin\boo\Cache', 'getDurationTime'], array('last week'));
+}
+function done($a){
+	Cache::exec('done', function () {
+		test();
+	}, array($a));
 }
 
+Cache::exec('Апельсин', function () {
+	sleep(1);
+	done(1);
+	done(2);
+	done(3);
+	done(4);
+});
+test();
+Cache::exec('Апельсин', function () {
+	sleep(1);
+	Event::fire('wow');
+});
+
+Event::handler('wow', function(){
+	sleep(1);
+	test();
+});
+
+/*==
+	--
+		**
+	--
+	**
+		&&
+			%%
+		&&	
+		%%
+			?
+		%%
+	**
+==
+
+/*Cache::exec('Тест 2', function () {
+	sleep(1);
+	Event::fire('event');
+});
+
+Event::handler('event', function(){
+	sleep(1);
+	test();
+});*/
 
 
-$r = &test();
-$r['wow'] = true;
-
-$rr = &test();
-	
-print_r($rr);
-exit;
 
 /*Cache::exec('Проверка2', function() {
 	usleep(0.5 * 1000000);

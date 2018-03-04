@@ -12,6 +12,7 @@ use infrajs\mem\Mem;
 class MemCache extends Cache
 {
     public static $type = 'MemCache';
+    public static $admin = true;
     public static function saveResult($item) {
         $strdata = json_encode($item);
 		Mem::set('boo-' . $item['id'], $strdata);

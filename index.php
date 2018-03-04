@@ -8,13 +8,21 @@ use infrajs\path\Path;
 use infrajs\access\Access;
 use infrajs\config\Config;
 use akiyatkin\fs\FS;
+use infrajs\env\Env;
 
 Access::debug(true);
 Config::get('timezone');
 
 return Rest::get( function () {
 		Face::index();
-	}, 'check',function() {
+	}, 'empty', function () { //Пустой запрос лишь инициализация роутера
+		$ans = array(); 
+		Env::name();
+		Config::get();
+
+		$ans['empty'] = 'router and all config init like main start';
+		return Ans::ret($ans);
+	}, 'check', function () {
 		$src = Once::srcTree();
 		$items = FS::file_get_json($src);
 

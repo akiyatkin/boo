@@ -28,7 +28,7 @@ class Face {
 		} else {
 			$mytime = 0;
 		}
-		$childs = isset($item['rel'])? $item['rel']['childs']: $item['childs'];
+		$childs = isset($item['rel'])? $item['rel']['childs']: $item['exec']['childs'];
 		foreach ($childs as $cid) {
 			$time = Face::getTime($items[$cid], $items);
 			if (!$time) continue;
@@ -41,7 +41,7 @@ class Face {
 		if (isset($childs[$item['id']])) return array();
 		$childs[$item['id']] = true;
 	
-		foreach ($item['childs'] as $id) {
+		foreach ($item['exec']['childs'] as $id) {
 			Face::findAllChilds($items[$id], $items, $childs);
 		}
 		return array_keys($childs);
@@ -51,7 +51,7 @@ class Face {
 		
 		foreach ($list as $id) {
 			$childs[$id] = true;
-			Face::findAllMyChilds($items[$id]['childs'], $items, $childs);
+			Face::findAllMyChilds($items[$id]['exec']['childs'], $items, $childs);
 		}
 		return array_keys($childs);
 
@@ -80,13 +80,13 @@ class Face {
 		}
 		$parents += $item['rel']['parents'];
 		$childs = array_unique(array_merge($parents,array_keys($childs)));
-		
+		Once::setBooTime();
 		return $childs;
 	}
+	
 	public static function refresh($path, $deep) {
 		list($right, $item, $items, $path) = Face::init($path);
 		$childs = Face::search($path, $deep);
-		
 		$srcs = array();
 		
 		foreach ($childs as $v) {
@@ -99,97 +99,32 @@ class Face {
 			if(!$src) $src = 'index.php';
 			Load::loadTEXT($src);
 		}
-
+		Once::setBooTime();
+		//Once::loadResult($item);
 		Once::initSave();
 
 		Once::$proccess = false;
-		$src = Once::getTreeSrc();
+		$src = Once::getItemsSrc();
 		Load::unload($src);
 		$src = Path::resolve($src);
+		Face::$inited = false;
 		//Once::clear('boo-face-init');
 		//clearstatcache($src);
 	}
 	public static function remove($path, $deep = false) {
 		list($right, $item, $items, $path) = Face::init($path);
-		$childs = Face::search($path, $deep);
+		$childs = Face::search($path, $deep); 
+		Once::setBooTime();
 		foreach ($childs as $v) {
 			Once::removeResult($items[$v]);
 		}
-	}
-	//root - Группа1 - Кэш1 - Группа2 - Кэш2
-	//root - Группа3 - Кэш1
-
-
-	public static function checkParents($item, &$items, $path = '') {
-		
-	
-		if ($path && !in_array($path, $items[$item['id']]['parents'])) {
-			$items[$item['id']]['parents'][] = $path;
-		}
-		//$newpath = $newpath? $item['id']: $newpath.'.'.$item['id'];
-		foreach ($item['childs'] as $cid) {
-
-			if ($item['parents']) {
-
-				foreach ($item['parents'] as $newpath) {
-
-					$newpath = $newpath? $newpath.'.'.$item['id']: $item['id'];
-					
-					
-					Face::checkParents($items[$cid], $items, $newpath);
-				}
-			} else {
-
-				$newpath = $path;
-				Face::checkParents($items[$cid], $items, $newpath);
-			}
-		}
-		
-
-		/*foreach ($item['childs'] as $cid) {
-			if (!in_array($path, $items[$cid]['parents'])) {
-				//$items[$cid]['parents'][] = $path;
-			}
-			foreach ($items[$cid]['parents'] as $newpath) {
-				//$newpath = $newpath? $item['id']: $newpath.'.'.$item['id'];
-				Face::checkParents($items[$cid], $items, $newpath);
-			}
-		}*/
-		
-	}
-	public static function getParents($cid, $parents, $items, $add = [], $take = true) {
-		$list = $parents[$cid];
-		$res = array();
-		array_unshift($add, $cid);
-
-		$take = isset($items[$cid]['src']) || $take;
-		
-
-		if ($list) {
-			
-			foreach ($list as $pid) {
-
-				$r = Face::getParents($pid, $parents, $items, $add, $take);
-				$res = array_merge($r, $res);
-				
-			}
-			
-		} else {
-			if ($take) {
-				$res = [Sequence::short($add)];
-			} else {
-				$res = [];
-			}
-		}
-		
-		return $res;
 	}
     public static function run(&$items, $root, $fn, $level = 1) {
         //Есть разница между первым упоминанием и вторым. Merge всегда к концу делается аналогично
         $right = Sequence::right($root);
         $item = &$items[$right[sizeof($right) - 1]];
         $fn($item, $root, $level);
-        foreach ($item['childs'] as $id) {
+        foreach ($item['exec']['childs'] as $id) {
             $newpath = Sequence::short(array_merge($right, [$id]));
 
             Face::run($items, $newpath, $fn, $level +1);
@@ -207,174 +142,178 @@ class Face {
             Face::runGroups($items, $newpath, $fn, $level +1);
         }
     }
+    public static $inited = [];
 	public static function init($path = 'root') {
-		return Cache::once(function () use ($path){
-			$src = Once::getTreeSrc();
-			$items = FS::file_get_json($src);
-			//if (!$items) $items = Once::$items;
-			$groups = [];
-			foreach ($items as $k => $item) {
-				if (!isset($groups[$item['gid']])) {
-					$groups[$item['gid']] = array(
-						'id' => $item['gid'],
-						'title' => $item['gtitle']
-					);
-					$groups[$item['gid']]['exec'] = array();
-					$groups[$item['gid']]['type'] = 'group';
-					$groups[$item['gid']]['isgroup'] = true;
-					$groups[$item['gid']]['childs'] = array();
-					$groups[$item['gid']]['childgroups'] = array();
-				}
-				$groups[$item['gid']]['childs'][] = $item['id'];
-				foreach ($item['childs'] as $sub) {
-					$groups[$item['gid']]['childgroups'][$items[$sub]['gid']] = true;
-				}
+		if (Face::$inited) return Face::$inited;
+		
+		$src = Once::getItemsSrc();
+		$items = FS::file_get_json($src);
+		//if (!$items) $items = Once::$items;
+		$groups = [];
+		foreach ($items as $k => $item) {
+			if (!isset($groups[$item['gid']])) {
+				$groups[$item['gid']] = array(
+					'id' => $item['gid'],
+					'title' => $item['gtitle']
+				);
+				$groups[$item['gid']]['exec'] = array();
+				$groups[$item['gid']]['type'] = 'group';
+				$groups[$item['gid']]['isgroup'] = true;
+				$groups[$item['gid']]['exec']['childs'] = array();
+				$groups[$item['gid']]['childgroups'] = array();
 			}
-
-			foreach($groups as $k => $gr) {
-				$groups[$k]['childgroups'] = array_values(array_unique(array_keys($groups[$k]['childgroups'])));
+			$groups[$item['gid']]['exec']['childs'][] = $item['id'];
+			foreach ($item['exec']['childs'] as $sub) {
+				$groups[$item['gid']]['childgroups'][$items[$sub]['gid']] = true;
 			}
-			foreach ($items as $item) {
-				Face::run($items, $item['id'], function(&$it, $path) use ($items) {
-					if(empty($it['paths'])) $it['paths'] = array();
-					if(empty($it['parents'])) $it['parents'] = array();
-					if(empty($it['childgroups'])) $it['childgroups'] = array();
+		}
+		
+		foreach($groups as $k => $gr) {
+			$groups[$k]['childgroups'] = array_values(array_unique(array_keys($groups[$k]['childgroups'])));
+		}
+		foreach ($items as $item) {
+			Face::run($items, $item['id'], function(&$it, $path) use ($items) {
+				if (empty($it['paths'])) $it['paths'] = array();
+				if (empty($it['parents'])) $it['parents'] = array();
+				if (empty($it['childgroups'])) $it['childgroups'] = array();
 
-					$it['paths'][] = $path;
-					$right = Sequence::right($path);
-					if (sizeof($right) < 2) return;
-					$pid = $right[sizeof($right) - 2];
+				$it['paths'][] = $path;
+				$right = Sequence::right($path);
+				array_pop($right);
+				foreach ($right as $pid) {
 					if (!in_array($pid, $it['parents'])) $it['parents'][] = $pid;
+					
 					$gid = $items[$pid]['gid'];
 					if (!in_array($gid, $it['childgroups'])) $it['childgroups'][] = $gid;
-				});
-			}
-			foreach ($items as $k => $item) {
-				$paths = $items[$k]['paths'];
-				foreach ($paths as $i => $f) {
-					foreach ($paths as $s) {
-						if (strstr($s,$f) !== false && $f !== $s) {
-							//Нашли совпадение можно удалить
-							unset($paths[$i]);
-							break;
-						}
+				}
+			});
+		}
+		
+		foreach ($items as $k => $item) {
+			$paths = $items[$k]['paths'];
+			foreach ($paths as $i => $f) {
+				foreach ($paths as $s) {
+					if (strstr($s,$f) !== false && $f !== $s) {
+						//Нашли совпадение можно удалить
+						unset($paths[$i]);
+						break;
 					}
 				}
-				$items[$k]['paths'] = $paths;
 			}
-			foreach($groups as $k => $gr) {
-				Face::runGroups($groups, $k, function(&$it, $path) use ($groups) {
-					//if (empty($it['paths'])) $it['paths'] = array();
-					if (empty($it['parentgroups'])) $it['parentgroups'] = array();
-					if (empty($it['parents'])) $it['parents'] = array();
+			$items[$k]['paths'] = array_values($paths);
+		}
+		
+		foreach($groups as $k => $gr) {
+			Face::runGroups($groups, $k, function(&$it, $path) use ($groups) {
+				//if (empty($it['paths'])) $it['paths'] = array();
+				if (empty($it['parentgroups'])) $it['parentgroups'] = array();
+				if (empty($it['parents'])) $it['parents'] = array();
 
-					//$it['paths'][] = $path;
-					$right = Sequence::right($path);
-					if (sizeof($right) < 2) return;
-					$pid = $right[sizeof($right) - 2];
-					if (!in_array($pid, $it['parentgroups'])) {
-						$it['parentgroups'][] = $pid;
-						$g = $groups[$pid];
-						$it['parents'] = array_merge($it['parents'],$g['childs']);
-					}
+				//$it['paths'][] = $path;
+				$right = Sequence::right($path);
+				if (sizeof($right) < 2) return;
+				$pid = $right[sizeof($right) - 2];
+				if (!in_array($pid, $it['parentgroups'])) {
+					$it['parentgroups'][] = $pid;
+					$g = $groups[$pid];
+					$it['parents'] = array_merge($it['parents'],$g['exec']['childs']);
+				}
 
-				});
-			}
+			});
+		}
 
 
-			if (!$path || $path == 'root') {
-				$path = 'root';
-				$right = [];
-				$id = false;
-				$item = false;
+		if (!$path || $path == 'root') {
+			$path = 'root';
+			$right = [];
+			$id = false;
+			$item = false;
+		} else {
+			$right = Sequence::right($path);
+			$id = $right[sizeof($right) - 1];
+
+			if (isset($groups[$id])) {
+				$item = $groups[$id];
+				
 			} else {
 				$right = Sequence::right($path);
 				$id = $right[sizeof($right) - 1];
-
-				if (isset($groups[$id])) {
-					$item = $groups[$id];
-					
+				if (isset($items[$id])) {
+					$item = $items[$id];
+					$data = Once::loadResult($item);
+					if ($data) {
+						$item['exec'] = $data['exec'];
+						$item['exec']['result'] = substr(Load::json_encode($item['exec']['result']),0,10000);
+					}
 				} else {
-					$right = Sequence::right($path);
-					$id = $right[sizeof($right) - 1];
-					if (isset($items[$id])) {
-						$item = $items[$id];
-						$data = Once::loadResult($item);
-						if ($data) $item['exec'] = $data['exec'];
-					} else {
-						$item = false;
-					}
-					
+					$item = false;
 				}
-			}
-
-			if ($item) {
-				if ($item['type'] == 'group') {
-					$item['paths'] = [];
-					foreach ($item['childs'] as $cid) {
-						$item['paths'] = array_merge($item['paths'], $items[$cid]['paths']);
-					}
-					$item['paths'] = array_values(array_unique($item['paths']));
-				}
-
-				$item['rel'] = array();
-				$item['rel']['path'] = $path;
-				$item['rel']['paths'] = [];
-
-				$childs = array();
-				foreach($item['paths'] as $p) {
-
-					//Надо сравнить $p и $path
-					$right = Sequence::right($path);
-					$pr = Sequence::right($p);
-					
-					$ir = array_reverse($right);//Обязательный путь состоящий из групп и кэшей
-					$pr = array_reverse($pr); //Путь, который может отличаться, но должен содержать всебе ir
-
-					$i = 0;
-					$e = false;
-
 				
-					foreach ($pr as $k => $rid) {
-						if (isset($groups[$ir[$i]])) {
-							$e = ($items[$rid]['gid'] == $ir[$i]);
-						} else {
-							$e = ($ir[$i] == $rid);
-						}
-						if ($e) {
-							$e = false;
-							$i++;
-							if (empty($ir[$i])) {
-								$childs[] = $pr[0];
-								$item['rel']['paths'][] = $p;
-								break;//найден последний элемент в ir есть pr
-							}
-						}
-					}
+			}
+		}
+	
+
+		if ($item) {
+			if ($item['type'] == 'group') {
+				$item['paths'] = [];
+				foreach ($item['exec']['childs'] as $cid) {
+					$item['paths'] = array_merge($item['paths'], $items[$cid]['paths']);
 				}
-				$item['rel']['childs'] = array_values(array_unique($childs));
-				if ($item['type'] != 'group') {
-					$item['rel']['parents'] = $item['parents'];
-				} else {
-					$item['rel']['parents'] = [];
-					foreach($item['rel']['childs'] as $cid) {
-						$item['rel']['parents'] = array_merge($item['rel']['parents'], $items[$cid]['parents']);
-					}
-					$item['rel']['parents'] = array_values(array_unique($item['rel']['parents']));
-				}
+				$item['paths'] = array_values(array_unique($item['paths']));
 			}
 
-			return [$right, &$item, &$items, $path, $groups];
-		});
+			$item['rel'] = array();
+			$item['rel']['path'] = $path;
+			$item['rel']['paths'] = [];
+
+			$childs = array();
+			foreach($item['paths'] as $p) {
+
+				//Надо сравнить $p и $path
+				$right = Sequence::right($path);
+				$pr = Sequence::right($p);
+				
+				$ir = array_reverse($right);//Обязательный путь состоящий из групп и кэшей
+				$pr = array_reverse($pr); //Путь, который может отличаться, но должен содержать всебе ir
+
+				$i = 0;
+				$e = false;
+
+			
+				foreach ($pr as $k => $rid) {
+					if (isset($groups[$ir[$i]])) {
+						$e = ($items[$rid]['gid'] == $ir[$i]);
+					} else {
+						$e = ($ir[$i] == $rid);
+					}
+					if ($e) {
+						$e = false;
+						$i++;
+						if (empty($ir[$i])) {
+							$childs[] = $pr[0];
+							$item['rel']['paths'][] = $p;
+							break;//найден последний элемент в ir есть pr
+						}
+					}
+				}
+			}
+			$item['rel']['childs'] = array_values(array_unique($childs));
+			if ($item['type'] != 'group') {
+				$item['rel']['parents'] = $item['parents'];
+			} else {
+				$item['rel']['parents'] = [];
+				/*foreach($item['rel']['childs'] as $cid) {
+					$item['rel']['parents'] = array_merge($item['rel']['parents'], $items[$cid]['parents']);
+				}
+				$item['rel']['parents'] = array_values(array_unique($item['rel']['parents']));*/
+			}
+		}
 		
+		Face::$inited = [$right, &$item, &$items, $path, $groups];
+		return Face::$inited;
 	}
 	public static function getClearTimer($item, $items) {
-		$timer = 0;
-		foreach ($item['childs'] as $sub) {
-			$timer += $items[$sub]['exec']['timer'];
-		}
-		$timer = $item['exec']['timer'] - $timer;
-		return $timer;
+		return $item['exec']['timer'];	
 	}
 	public static function index($path = 'root', $action = false) {
 
@@ -386,7 +325,7 @@ class Face {
 
 		list($right, $item, $items, $path, $groups) = Face::init($path);
 
-
+	
 		$data['item'] = &$item;
 		$data['right'] = $right;
 		$data['groups'] = $groups;
@@ -414,28 +353,44 @@ class Face {
 			$data['exec'] = array();
 			$data['pathsrc'] = '?-boo=root';
 			$data['exec']['time'] = 0;
+			$timer = 0;
 			foreach ($items as $it) {
+				$timer += $it['exec']['timer'];
 				if (empty($it['exec']['time'])) continue;
 				if ($it['parents']) continue;
 				if ($data['exec']['time'] < $it['exec']['time']) $data['exec']['time'] = $it['exec']['time'];
 			}
 
-			$childs = Face::search($path, false);
-			$timer = 0;
-			foreach($childs as $cid) {
-				$timer += Face::getClearTimer($items[$cid], $items);
+			/*$childs = Face::search($path, false);
+			
+			foreach ($childs as $cid) {
+				$t = Face::getClearTimer($items[$cid], $items);
+
+				//echo $t.' '.$items[$cid]['title'].'<br>';
+				if ($t<0) {
+					//echo '<pre>';
+					//print_r($items[$cid]);
+					//foreach() {
+					//
+					//}
+					//exit;
+				}
+				$timer += $t;
 			}
-			$data['exec']['timer'] = $timer;
-			$data['exec']['timer'] = round($data['exec']['timer'],2);
+			//exit;*/
+			$data['exec']['timerfr'] = $timer;
+			$data['exec']['timerfr'] = round($data['exec']['timerfr'],2);
 		} else if ($data['item']) {
 			$time = Face::getTime($data['item'], $items);
 			$data['item']['exec']['time'] = $time;
 
-			$childs = Face::search($path, false);
+			$childs = Face::search($path, false); //не deep
 			$timer = 0;
-			foreach($childs as $cid) {
+
+			foreach ($childs as $cid) { //Вместе с родителями
 				$timer += Face::getClearTimer($items[$cid], $items);
 			}
+
 			$data['item']['exec']['timerch'] = $timer;
 
 
@@ -444,10 +399,13 @@ class Face {
 			foreach($childs as $cid) {
 				$timer += Face::getClearTimer($items[$cid], $items);
 			}
-			$data['item']['exec']['timer'] = $timer;
-
+			
+			$data['item']['exec']['timerfr'] = $timer;
 			$data['item']['exec']['timerch'] = round($data['item']['exec']['timerch'],2);
-			$data['item']['exec']['timer'] = round($data['item']['exec']['timer'],2);
+			$data['item']['exec']['timerfr'] = round($data['item']['exec']['timerfr'],2);
+
+
+			
 
 
 			if ($data['item']['type'] == 'group') {
@@ -458,15 +416,18 @@ class Face {
 					break;
 				}
 			} else {
+				$data['item']['exec']['timer'] = round($data['item']['exec']['timer'],2);
 				$src = $data['item']['src'];
+				if (preg_match("/\?/", $src)) {
+					$data['item']['pathsrc'] = $src.'&';
+				} else {
+					$data['item']['pathsrc'] = $src.'?';
+				}
+				$data['item']['pathsrc'] .= '-boo='.$data['path'];
 			}
 
-			if (preg_match("/\?/", $src)) {
-				$data['item']['pathsrc'] = $src.'&';
-			} else {
-				$data['item']['pathsrc'] = $src.'?';
-			}
-			$data['item']['pathsrc'] .= '-boo='.$data['path'];
+			
+			
 
 			foreach ($data['item']['rel']['paths'] as $k => $parpath) {
 				$active = ($path == $parpath);
@@ -481,7 +442,8 @@ class Face {
 				$data['item']['paths'][$k] = Face::makePath($parpath, $data, $active);
 			}
 		}
-
+		//echo '<pre>';
+		//print_r($data);
 		$html = Rest::parse('-boo/layout.tpl', $data, 'LIST');
 		
 		Ans::html($html);

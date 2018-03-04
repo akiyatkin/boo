@@ -5,6 +5,7 @@ use infrajs\load\Load;
 use infrajs\nostore\Nostore;
 use infrajs\each\Each;
 use infrajs\hash\Hash;
+use infrajs\access\Access;
 use akiyatkin\fs\FS;
 use infrajs\sequence\Sequence;
 use League\Flysystem\Adapter\Local;
@@ -15,6 +16,7 @@ use Cache\Adapter\Filesystem\FilesystemCachePool;
 class Cache extends Once
 {
     public static $type = 'Cache';
+    public static $admin = true;
     public static function saveResult($item) {
         $dir = Cache::$conf['cachedir'].$item['gid'];
         $file = $dir.'/'.$item['hash'].'.json';
@@ -44,6 +46,12 @@ class Cache extends Once
             last friday
         */
         return strtotime($strtotime);
+    }
+    /**
+    * Кэш до следующей авторизации админа
+    **/
+    public static function getAccessTime() {
+        return Access::adminTime();
     }
     public static function getModifiedTime($conds = array()) {
         if (!sizeof($conds)) return 0;//Если нет conds кэш навсегда и develop не поможет
