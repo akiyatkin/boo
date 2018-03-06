@@ -16,7 +16,7 @@ use Cache\Adapter\Filesystem\FilesystemCachePool;
 class Cache extends Once
 {
     public static $type = 'Cache';
-    public static $admin = true;
+    public static $admin = false;
     public static function saveResult($item) {
         $dir = Cache::$conf['cachedir'].$item['gid'];
         $file = $dir.'/'.$item['hash'].'.json';

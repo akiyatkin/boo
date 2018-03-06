@@ -9,7 +9,7 @@ Access::test(true);
 MemCache::exec('MemCache', function () {
 	echo 'MemCache';
 });
-HiddenMemCache::exec('HiddenCache', function () {
+HiddenCache::exec('HiddenCache', function () {
 	echo 'HiddenCache';
 });
 
