@@ -64,12 +64,12 @@ class Face {
 			if (!$item) return array();
 		}
 		$childs = array();
-		if ($item['type'] != 'group') {
+		if (!empty($item['cls'])) {
 			$childs[$item['id']] = true;
 		}
 		if ($deep) {
 			Face::findAllMyChilds($item['rel']['childs'], $items, $childs);	
-		} else if($item['type'] == 'group') { //Если группа
+		} else if(empty($item['cls'])) { //Если группа
 			foreach ($item['rel']['childs'] as $ch) {
 				$childs[$ch] = true;
 			}
@@ -157,7 +157,6 @@ class Face {
 					'title' => $item['gtitle']
 				);
 				$groups[$item['gid']]['exec'] = array();
-				$groups[$item['gid']]['type'] = 'group';
 				$groups[$item['gid']]['isgroup'] = true;
 				$groups[$item['gid']]['exec']['childs'] = array();
 				$groups[$item['gid']]['childgroups'] = array();
@@ -254,7 +253,7 @@ class Face {
 	
 
 		if ($item) {
-			if ($item['type'] == 'group') {
+			if (empty($item['cls'])) {
 				$item['paths'] = [];
 				foreach ($item['exec']['childs'] as $cid) {
 					$item['paths'] = array_merge($item['paths'], $items[$cid]['paths']);
@@ -298,7 +297,7 @@ class Face {
 				}
 			}
 			$item['rel']['childs'] = array_values(array_unique($childs));
-			if ($item['type'] != 'group') {
+			if (!empty($item['cls'])) {
 				$item['rel']['parents'] = $item['parents'];
 			} else {
 				$item['rel']['parents'] = [];
@@ -334,7 +333,7 @@ class Face {
 		if ($path == 'root') { 
 			$data['layout'] = 'root';
 		}
-		if ($item['type'] == 'group') {
+		if (empty($item['cls'])) {
 			$data['layout'] = 'group';
 		}
 
@@ -408,7 +407,7 @@ class Face {
 			
 
 
-			if ($data['item']['type'] == 'group') {
+			if (empty($data['item']['cls'])) {
 				if ($path) $data['pathforgroup'] = $path.'.';
 				else $data['pathforgroup'] = '';
 				foreach ($data['item']['rel']['childs'] as $cid) {

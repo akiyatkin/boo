@@ -22,18 +22,13 @@ class Once
 	);
 	public static $proccess = false;
 	public static $conds = array();
-	public static function &createCond($cond, $condargs = array()) {
-		$r = null;
-		if (!$cond) return $r;
-		$hash = Path::encode(json_encode($cond,JSON_UNESCAPED_UNICODE).':'.json_encode($condargs,JSON_UNESCAPED_UNICODE));
-		if (empty(Once::$conds[$hash])) Once::$conds[$hash] = array(
-			'fn' => $cond,
-			'hash' => $hash,
-			'args' => $condargs
-		);
-		return Once::$conds[$hash];
+	public static function getCondTime($cond) {
+		$id = json_encode($cond, JSON_UNESCAPED_UNICODE);
+		if (isset(Once::$conds[$id])) return Once::$conds[$id];
+		Once::$conds[$id] = call_user_func_array($cond['fn'], $cond['args']);	
+		return Once::$conds[$id];
 	}
-	public static function &createItem($gtitle = false, $args = array(), $cond = array(), $condargs = array(), $level = 0)
+	public static function &createItem($gtitle = false, $args = array(), $condfn = array(), $condargs = array(), $level = 0)
 	{
 		$level++;
 		list($gid, $id, $title, $hash, $fn) = static::hash($args, $level);
@@ -49,15 +44,14 @@ class Once
 			$item['gtitle'] = $gtitle;
 			$item['gid'] = $gid;
 		}	
-		
 		if (sizeof($args) == 0) {
 			$item['title'] = $gtitle;
 		} else {
 			$item['title'] = $title;
 		}
 		$item['id'] = $id;
-		$item['type'] = static::$type;
-		$item['cond'] = $cond;
+		$item['cls'] = get_called_class();
+		$item['condfn'] = $condfn;
 		$item['condargs'] = $condargs;
 		$item['fn'] = $fn;
 		$item['args'] = $args;
@@ -66,26 +60,36 @@ class Once
 
 		$item['src'] = static::getSrc();
 		
+		
+    		
+    	
+
 
 		$data = static::loadResult($item);
-		$cond = Once::createCond($cond, $condargs);
+		
 		if (!$data) {
 			$item['exec'] = array();
 			$item['exec']['conds'] = array();
 			$item['exec']['childs'] = array();
 			$item['exec']['timer'] = 0;
-			if ($cond) $item['exec']['conds'][] = $cond['hash'];
+
+			if ($condfn) {
+	    		$cond = array('fn' => $condfn, 'args' => $condargs);
+	    	} else if(!static::$admin) {//Обновление по последнему boo только для кэшей у которых нет своего условия
+	    		$cond = array('fn' => ['akiyatkin\\boo\\Once','getBooTime'], 'args' => array());
+	    	} else {
+	    		$cond = false;
+	    	}
+	    	if ($cond) $item['exec']['conds'][] = $cond;
+
 		} else {
 			$item['exec'] = $data['exec'];
 			$item['exec']['timer'] = 0;
 		}
-		static::prepareItem($item);
+
+		
 		Once::$items[$id] = &$item;
 		return $item;
-	}
-	//Функция для расширения в HiddenCache, например.
-	public static function prepareItem(&$item) {
-
 	}
 	public static function setBooTime() {
 		$sys = FS::file_get_json('!.infra.json');
@@ -185,40 +189,26 @@ class Once
 		static::end();
 		return true;
 	}
-	public static function once($fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
-		$gtitle = false;
-		$level++;
-		return Once::exec($gtitle, $fn, $args, $cond, $condargs, $level);
-	}
-	public static function &amponce($fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
+	
+	/*public static function &amponce($fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
 		$gtitle = false;
 		$level++;
 		return Once::ampexec($gtitle, $fn, $args, $cond, $condargs, $level);
-	}
-	public static function &ampexec($gtitle, $fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
+	}*/
+	/*public static function &ampexec($gtitle, $fn, $args = array(), $cond = array(), $condargs = array(), $level = 0){
 		$level++;
 		static::exec($gtitle, $fn, $args, $cond, $condargs, $level, $items);
 		return $items[0]['exec']['result'];
-	}
+	}*/
 	public static function isChange(&$item) {
 		if (!Once::isSave($item)) return false;
 		$atime = Access::adminTime();
 		$uptime = Once::getBooTime();
 		if ($uptime > $atime) $atime = $uptime;
 		if ($atime <= $item['exec']['time'] && !Access::isDebug()) return false;
-		//Придётся загружать conds
-		Once::initConds();
-		foreach($item['exec']['conds'] as $hash) {
-			$cond = &Once::$conds[$hash];
-			if (!isset($cond['time'])) {
-				$cond['time'] = call_user_func_array($cond['fn'], $cond['args']);	
-				if (is_null($cond['time'])) {
-					echo '<pre>';
-					debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
-					exit;
-				}
-			}
-			if ($cond['time'] >= $item['exec']['time']) return true;
+		foreach ($item['exec']['conds'] as $cond) {
+			$time = Once::getCondTime($cond);
+			if ($time >= $item['exec']['time']) return true;
 		}
 		return false;
 	}
@@ -232,21 +222,23 @@ class Once
 		Once::$item = &$item;
 		return $item;
 	}
-	public static function debug(){
-		echo 'Cache::debug'.'<br>'."\n";
-		echo 'path: '.implode(', ',Once::$parents).'<br>'."\n";
-		echo 'childs: '.implode(', ',Once::$item['exec']['childs']).'<br>'."\n";
+	public static function clear($id) {
+		unset(Once::$items[$id]['exec']['start']);
 	}
-	public static function lastId () {
-		return Once::$lastid;
+	public static function &once($fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0){
+		$gtitle = false;
+		$level++;
+		return Once::exec($gtitle, $fn, $args, $condfn, $condargs, $level);
 	}
-	public static function clear($item) {
-		unset($item['exec']['start']);	
+	public static function &func($fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0){
+		$gtitle = false;
+		$level++;
+		return static::exec($gtitle, $fn, $args, $condfn, $condargs, $level);
 	}
-    public static function &exec($gtitle, $fn, $args = array(), $cond = array(), $condargs = array(), $level = 0, &$origitem = array())
+    public static function &exec($gtitle, $fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0, &$origitem = array())
     {	
     	$level = $level++;
-        $item = &static::start($gtitle, $args, $cond, $condargs, $level);
+        $item = &static::start($gtitle, $args, $condfn, $condargs, $level);
         $origitem[0] = &$item;
         $execute = empty($item['exec']['start']) || Once::isChange($item);
         
@@ -264,15 +256,16 @@ class Once
         }
 		static::end();
 
-		if (Once::$proccess) { //Если вообще хоть кто-то выполнялся иначе был кэш с сохранёнными conds
-			$parents = array_reverse(Once::$parents); //От последнего вызова
-			foreach ($parents as $pid) {
-				foreach ($item['exec']['conds'] as $hash) {
-					if (!in_array($hash, Once::$items[$pid]['exec']['conds'])) Once::$items[$pid]['exec']['conds'][] = $hash;
-				}
-				if (!isset(Once::$items[$pid]['exec']['end'])) break; //Дальше этот родитель передаст сам, когда завериштся
+		$parents = array_reverse(Once::$parents); //От последнего вызова
+		foreach ($parents as $pid) {
+			foreach ($item['exec']['conds'] as $cond) {
+				if (!in_array($cond, Once::$items[$pid]['exec']['conds'])) Once::$items[$pid]['exec']['conds'][] = $cond;
 			}
+			if (!isset(Once::$items[$pid]['exec']['end'])) break; //Дальше этот родитель передаст сам, когда завериштся
 		}
+		//if (Once::$proccess) { //Если вообще хоть кто-то выполнялся иначе был кэш с сохранёнными conds
+			
+		//}
 		if ($execute) {
 			Once::$item['exec']['timer'] -= $t;
 		}
@@ -310,14 +303,12 @@ class Once
         return true;
     }
     public static function loadResult($item) {
-		if (empty($item['type'])) return;
-		if ($item['type'] == 'Once') return;
-		return call_user_func_array('akiyatkin\\boo\\'.$item['type'].'::loadResult', array($item));
+		if ($item['cls'] == 'akiyatkin\\boo\\Once') return;
+		return call_user_func_array($item['cls'].'::loadResult', array($item));
     }
 	public static function removeResult($item) {
-		if (empty($item['type'])) return;
-		if ($item['type'] == 'Once') return;
-		call_user_func_array('akiyatkin\\boo\\'.$item['type'].'::removeResult', array($item));
+		if ($item['cls'] == 'akiyatkin\\boo\\Once') return;
+		call_user_func_array($item['cls'].'::removeResult', array($item));
 	}
 
     /**
@@ -328,33 +319,23 @@ class Once
      * @param $item
      */
     public static function isAdmin($item) {
-    	$cls = 'akiyatkin\\boo\\'.$item['type'];
-		return $cls::$admin;
+		return $item['cls']::$admin;
     }
     public static function isSave($item) {
-    	if ($item['type'] == 'Once') return false;
+    	if ($item['cls'] == 'akiyatkin\\boo\\Once') return false;
     	return true;
     }
     public static function saveResult($item) {
     	if (!Once::isSave($item)) return;
-		return call_user_func_array('akiyatkin\\boo\\'.$item['type'].'::saveResult', array($item));
+		return call_user_func_array($item['cls'].'::saveResult', array($item));
     }
 	public static function getItemsSrc() {
 		return Once::$conf['cachedir'].'.items.json';
 	}
-	public static function getCondsSrc() {
-		return Once::$conf['cachedir'].'.conds.json';
-	}
-
     public static function initSave() {
     	
     	$src = Once::getItemsSrc();
 		$items = FS::file_get_json($src);
-		
-		Once::initConds();
-		$condssrc = Once::getCondsSrc();
-		foreach (Once::$conds as $t => $cond) unset(Once::$conds[$t]['time']);
-		FS::file_put_json($condssrc, Once::$conds);
 
 		foreach (Once::$items as $id => $v) {	
 			for ($k = 0; $k < sizeof($v['exec']['childs']); $k++ ) {
@@ -376,16 +357,8 @@ class Once
 		FS::file_put_json($src, $items);
         return $items;
     }
-    public static $condsready = false;
-    public static function initConds () {
-    	if (Once::$condsready) return;
-    	Once::$condsready = true;
-    	$src = Once::getCondsSrc();
-    	$conds = FS::file_get_json($src);
-    	Once::$conds = array_merge($conds, Once::$conds);
-    }
     public static function init () {
-		Once::$item = &static::createItem('Корень');
+		Once::$item = &Once::createItem('Корень');
 		Once::$parents[] = Once::$item['id'];
 		Once::$item['exec']['start'] = true;
 		Once::$item['exec']['timer'] = 0;

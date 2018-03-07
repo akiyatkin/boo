@@ -3,16 +3,16 @@ namespace akiyatkin\boo;
 
 use infrajs\access\Access;
 use infrajs\event\Event;
+use infrajs\catalog\Catalog;
 
 Access::test(true);
 
-MemCache::exec('MemCache', function () {
-	echo 'MemCache';
-});
-HiddenCache::exec('HiddenCache', function () {
-	echo 'HiddenCache';
-});
 
+Catalog::cache( function () {
+	echo 'asdf';
+
+	$data = Catalog::init();	
+});
 
 
 //fire Запоминает Once::$item и временно восстанавливает его при последующих подписках
