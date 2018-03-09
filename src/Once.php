@@ -14,7 +14,6 @@ class Once
 	public static $parents = [];
 	public static $childs = array();
 	public static $item = false;
-	public static $re = false; //Метка о сбросе скрытого кэша
 	public static $items = array();
 	public static $conf = array(
 		'cachedir' => '!boo/',
@@ -23,7 +22,9 @@ class Once
 	public static $proccess = false;
 	public static $conds = array();
 	public static function getCondTime($cond) {
-		$id = json_encode($cond, JSON_UNESCAPED_UNICODE);
+		//$id = json_encode($cond, JSON_UNESCAPED_UNICODE);
+		$id = print_r($cond,true);
+		//if (is_array($cond['fn'])) $id = $cond['fn'][0].':'.$cond['fn'][1];
 		if (isset(Once::$conds[$id])) return Once::$conds[$id];
 		Once::$conds[$id] = call_user_func_array($cond['fn'], $cond['args']);	
 		return Once::$conds[$id];
@@ -50,6 +51,7 @@ class Once
 			$item['title'] = $title;
 		}
 		$item['id'] = $id;
+		$item['admin'] = static::$admin;
 		$item['cls'] = get_called_class();
 		$item['condfn'] = $condfn;
 		$item['condargs'] = $condargs;
@@ -75,8 +77,8 @@ class Once
 
 			if ($condfn) {
 	    		$cond = array('fn' => $condfn, 'args' => $condargs);
-	    	} else if(!static::$admin) {//Обновление по последнему boo только для кэшей у которых нет своего условия
-	    		$cond = array('fn' => ['akiyatkin\\boo\\Once','getBooTime'], 'args' => array());
+	    	//} else if(!static::$admin) {//Обновление по последнему boo только для кэшей у которых нет своего условия
+	    	//	$cond = array('fn' => ['akiyatkin\\boo\\Once','getBooTime'], 'args' => array());
 	    	} else {
 	    		$cond = false;
 	    	}
@@ -100,6 +102,18 @@ class Once
 	}
 	public static function getBooTime() {
         return Once::$conf['time'];
+    }
+    public static function setStartTime() {
+		$sys = FS::file_get_json('!.infra.json');
+		if (!isset($sys['boo'])) $sys['boo'] = array();
+		$sys['boo']['starttime'] = time();
+		$sys['boo']['time'] = $sys['boo']['starttime'];
+		Once::$conf['starttime'] = $sys['boo']['starttime'];
+		Once::$conf['time'] = $sys['boo']['time'];
+		FS::file_put_json('!.infra.json', $sys);
+	}
+	public static function getStartTime() {
+        return Once::$conf['starttime'];
     }
 	public static function getItem(){
 		return static::$item;
@@ -181,7 +195,7 @@ class Once
 	{
 		$level++;
 		$item = &static::start($gtitle, $args, $cond, $condargs, $level);
-		if (empty($item['exec']['start']) || Once::isChange($item)) {
+		if (Once::isChange($item)) {
 			$item['exec']['start'] = true;
 			return false;
 		}
@@ -201,23 +215,59 @@ class Once
 		return $items[0]['exec']['result'];
 	}*/
 	public static function isChange(&$item) {
-		if (!Once::isSave($item)) return false;
-		$atime = Access::adminTime();
-		$uptime = Once::getBooTime();
-		if ($uptime > $atime) $atime = $uptime;
-		if ($atime <= $item['exec']['time'] && !Access::isDebug()) return false;
+		$r = static::_isChange($item);
+
+		//Мы хотим оптимизировать, что бы время проверки условий записалось и больше условия не проверялись
+		//Для этого при false нужно записать время и сохранить кэш. 
+		//Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
+		
+		//if ($r || ($r === 0 && !Access::isTest()) { //Иначе тестировщик постоянно будет пересохранять кэш
+		if ($r) {
+			//0 - означает что false из после проверки условий, тогда и пользователь может сохранить
+			$item['exec']['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
+			$item['exec']['notloaded'] = true; //Ключ который заставит кэш сохранится повторно
+		}
+		return $r;
+	}
+	public static function _isChange(&$item) {
+		if (empty($item['exec']['start'])) return true; //Кэша вообще нет ещё
+		if (!Once::isSave($item)) return false; //Это кэш который не сохраняется
+		
+		
+		if (!Access::isTest()) { //Для обычного человека сравниваем время последнего доступа
+			$atime = Access::adminTime(); //Заходил Админ
+			if ($atime <= $item['exec']['time']) return false; //И не запускаем проверки. 
+			//Есть кэш и админ не заходил
+		}
+
+		
+		
+		//Горячий сброс кэша, когда тестировщик обновляет сайт, для пользователей продолжает показываться старый кэш.
+		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
+		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
+		$atime = Once::getStartTime();
+		if ($atime > $item['exec']['time']) return true; //Проверки Не важны, есть отметка что весь кэш устарел
+		
+
+		
+		if (!$item['condfn'] && !Once::isAdmin($item)) {//Если кэш вручную не брасывается любое boo сбрасывает кэш без условий
+			$atime = Once::getBooTime();
+			if ($atime > $item['exec']['time']) return true; //Проверок нет, есть bootime - выполняем
+		}
+ 
 		foreach ($item['exec']['conds'] as $cond) {
 			$time = Once::getCondTime($cond);
 			if ($time >= $item['exec']['time']) return true;
-		}
-		return false;
+		}	
+		
+		return 0;
 	}
 
 	public static function &start($gtitle = false, $args = array(), $cond = array(), $condargs = array(), $level = 0)
 	{
 		$level++;
 		$item = &static::createItem($gtitle, $args, $cond, $condargs, $level);		
-		Once::$item['exec']['childs'][] = $item['id'];
+		if (!in_array($item['id'], Once::$item['exec']['childs'])) Once::$item['exec']['childs'][] = $item['id'];
 		Once::$parents[] = $item['id'];
 		Once::$item = &$item;
 		return $item;
@@ -226,25 +276,20 @@ class Once
 		unset(Once::$items[$id]['exec']['start']);
 	}
 	public static function &once($fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0){
-		$gtitle = false;
-		$level++;
-		return Once::exec($gtitle, $fn, $args, $condfn, $condargs, $level);
+		return Once::exec(false, $fn, $args, $condfn, $condargs, ++$level);
 	}
 	public static function &func($fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0){
-		$gtitle = false;
-		$level++;
-		return static::exec($gtitle, $fn, $args, $condfn, $condargs, $level);
+		return static::exec(false, $fn, $args, $condfn, $condargs, ++$level);
 	}
     public static function &exec($gtitle, $fn, $args = array(), $condfn = array(), $condargs = array(), $level = 0, &$origitem = array())
     {	
     	$level = $level++;
         $item = &static::start($gtitle, $args, $condfn, $condargs, $level);
         $origitem[0] = &$item;
-        $execute = empty($item['exec']['start']) || Once::isChange($item);
+        $execute =  Once::isChange($item);
         
         if ($execute) {
-            $item['exec']['start'] = true;
-            $item['exec']['notloaded'] = true;
+            $item['exec']['start'] = true; //Метка что кэш есть.
             $t = microtime(true);
 			$r = static::execfn($item, $fn);
 			$t = microtime(true) - $t;
@@ -252,12 +297,15 @@ class Once
 			$item['exec']['end'] = true;
 			if ($r) {
 				if (Once::isSave($item)) Once::$proccess = true;
+			} else {
+				$item['notloaded'] = null;
 			}
         }
 		static::end();
 
 		$parents = array_reverse(Once::$parents); //От последнего вызова
 		foreach ($parents as $pid) {
+			if (Once::$items[$pid]['condfn']) break; //У родителя своя функция проверки
 			foreach ($item['exec']['conds'] as $cond) {
 				if (!in_array($cond, Once::$items[$pid]['exec']['conds'])) Once::$items[$pid]['exec']['conds'][] = $cond;
 			}
@@ -319,7 +367,7 @@ class Once
      * @param $item
      */
     public static function isAdmin($item) {
-		return $item['cls']::$admin;
+    	return $item['cls']::$admin;
     }
     public static function isSave($item) {
     	if ($item['cls'] == 'akiyatkin\\boo\\Once') return false;
@@ -327,16 +375,70 @@ class Once
     }
     public static function saveResult($item) {
     	if (!Once::isSave($item)) return;
-		return call_user_func_array($item['cls'].'::saveResult', array($item));
+		return $item['cls']::saveResult($item);
     }
 	public static function getItemsSrc() {
 		return Once::$conf['cachedir'].'.items.json';
 	}
     public static function initSave() {
     	
-    	$src = Once::getItemsSrc();
-		$items = FS::file_get_json($src);
+    	$admins = array();
+    	foreach (Once::$items as $id => &$v) {
+    		if ( !empty($v['exec']['notloaded']) && Once::isAdmin($v) ) $admins[$id] = &$v;
+    	}
+    	
+    	foreach ($admins as $id => &$v) {
+    		$rems = array();
+    		$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
+			for ($k = 0; $k < sizeof($v['exec']['childs']); $k++ ) {
+				$cid = $v['exec']['childs'][$k];
+				if (Once::isAdmin(Once::$items[$cid])) continue; //Если Admin оставляем
+				$rems[] = $cid;
+				array_splice($v['exec']['childs'], $k, 1, Once::$items[$cid]['exec']['childs']);
+				$k--;
+			}
+			$rems = array_unique($rems); //Убранные childs
+			foreach ($rems as $cid) {
+				Once::$items[$id]['exec']['timer'] += Once::$items[$cid]['exec']['timer'];
+			}
+			$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
+		}
 
+		if ($admins) {
+			$src = Once::getItemsSrc();
+			$items = FS::file_get_json($src);
+			foreach($admins as $id => $it) {
+				unset($it['exec']['result']);
+				$items[$id] = $it;
+			}
+			FS::file_put_json($src, $items);
+		}
+
+    	foreach (Once::$items as $id => &$v) {
+    		if (!Once::isSave($v)) continue;
+			if (!empty($v['exec']['notloaded'])) { //Выполнено сейчас и не загрруженное не используется
+				unset($v['exec']['notloaded']); //notloaded появляется при выполнении. Сохраняем всегда без него
+				$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
+				//echo $v['gtitle'].':'.$v['title'].'<br>';
+				Once::saveResult($v);
+			}
+			/*echo "\n".'<hr>'.(++$i).') <b>'.$v['gtitle'].'</b>';
+			echo "\n\t".'<br>Название: '.$v['title'];
+			echo "\n\t".'<br>Путь: '.$v['gid'].'/'.$v['id'].'.json';
+			echo "\n\t".'<br>Время выполнения: '.$v['exec']['timer'].' с';
+			echo "\n\t".'<br>Зависимостей: '.sizeof($v['exec']['childs']);
+			echo "\n\t".'<br>Время сохранения: '.(microtime(true)-$t);*/
+			//$t = microtime(true);
+    	}
+
+
+
+    	/*$src = Once::getItemsSrc();
+		$items = FS::file_get_json($src);
+		
+
+		$t = microtime(true);
+		$i = 0;
 		foreach (Once::$items as $id => $v) {	
 			for ($k = 0; $k < sizeof($v['exec']['childs']); $k++ ) {
 				$cid = $v['exec']['childs'][$k];
@@ -347,15 +449,27 @@ class Once
 			$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
 			if (!Once::isSave($v)) continue;
 			if (!empty($v['exec']['notloaded'])) { //Выполнено сейчас и не загрруженное не используется
-				unset($v['exec']['notloaded']); //end появляется при выполнении. Сохраняем всегда без него
+				unset($v['exec']['notloaded']); //notloaded появляется при выполнении. Сохраняем всегда без него
 				Once::saveResult($v);
 			}
+			echo '<hr>'.(++$i).') <b>'.$v['gtitle'].'</b>';
+			echo '<br>Название: '.$v['title'];
+			echo '<br>Путь: '.$v['gid'].'/'.$v['id'].'.json';
+			echo '<br>Время выполнения: '.$v['exec']['timer'].' с';
+			echo '<br>Зависимостей: '.sizeof($v['exec']['childs']);
+			echo '<br>Время сохранения: '.(microtime(true)-$t);
+			$t = microtime(true);
+			//echo $i++;
 			if (!Once::isAdmin($v)) continue;
 			unset($v['exec']['result']); //Удалили результат, что бы файл был не таким большим, но статистку выполнения оставили ['exec']['time']
+			
+
 			$items[$id] = $v; //То что уже было записано нам пофиг. 
 		}
-		FS::file_put_json($src, $items);
-        return $items;
+
+
+		FS::file_put_json($src, $items);*/
+
     }
     public static function init () {
 		Once::$item = &Once::createItem('Корень');
@@ -368,7 +482,8 @@ class Once
 			Once::$item['exec']['end'] = true;
 			Once::$item['exec']['timer'] += microtime(true) - $t;
 		    chdir(Once::$cwd);
-		    
+		    //echo '<pre>';
+		    //print_r(sizeof(Once::$items));
 		    if (Once::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
 		        $error = error_get_last();
 		        
@@ -376,7 +491,7 @@ class Once
 				if (is_null($error) || ($error['type'] != E_ERROR
 		                && $error['type'] != E_PARSE
 		                && $error['type'] != E_COMPILE_ERROR)) {
-		            $items = Once::initSave();
+		            Once::initSave();
 		        }
 		    }
 		});

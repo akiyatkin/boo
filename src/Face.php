@@ -114,7 +114,8 @@ class Face {
 	public static function remove($path, $deep = false) {
 		list($right, $item, $items, $path) = Face::init($path);
 		$childs = Face::search($path, $deep); 
-		Once::setBooTime();
+		Once::setBooTime(); //Обновляе кэши без условий если запускаются провеки
+		Access::adminSetTime(); //Запускает проверки кэшей
 		foreach ($childs as $v) {
 			Once::removeResult($items[$v]);
 		}
@@ -324,7 +325,6 @@ class Face {
 
 		list($right, $item, $items, $path, $groups) = Face::init($path);
 
-	
 		$data['item'] = &$item;
 		$data['right'] = $right;
 		$data['groups'] = $groups;
@@ -332,8 +332,7 @@ class Face {
 
 		if ($path == 'root') { 
 			$data['layout'] = 'root';
-		}
-		if (empty($item['cls'])) {
+		} else if (empty($item['cls'])) {
 			$data['layout'] = 'group';
 		}
 

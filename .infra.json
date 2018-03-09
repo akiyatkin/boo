@@ -2,5 +2,7 @@
 	"conf":"akiyatkin\\boo\\Once",
 	"cachedir":"!boo/",
 	"update":"update.php",
+	"start":0,
+	"starttime":0,
 	"require":"infra.php"
 }

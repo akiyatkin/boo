@@ -11,7 +11,6 @@ if (isset($_GET['-boo'])) {
 	header('X-Robots-Tag: none');
 	Access::test(true);
 	$root = $_GET['-boo'];
-	Once::$re = true;
 	if ($root) { //Чтобы сбросить весь кэш - root
 		Face::remove($root);
 	}

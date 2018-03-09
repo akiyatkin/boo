@@ -48,8 +48,7 @@
 		
 	</div>
 {LISTshow:}
-	
-				
+		
 	{:layout-{layout}}
 	
 	
@@ -241,7 +240,7 @@
 {timeinfoitem:}
 	<div style="margin-bottom:10px">
 		Последние изменения: <b>{~date(:H:i j F Y,item.exec.time)}</b><br>
-		Тип: <b>{item.type}</b><br>
+		Тип: <b>{item.cls}</b><br>
 		Группа: <a href="/-boo/{item.gid}" class="group">{item.gtitle}</a><br>
 		Личное время: <b>{item.exec.timer} с</b><br>
 		Адрес создания: <a href="/{item.src}">{item.src}</a><br>

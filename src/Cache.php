@@ -15,7 +15,6 @@ use Cache\Adapter\Filesystem\FilesystemCachePool;
 
 class Cache extends Once
 {
-    public static $type = 'Cache';
     public static $admin = false;
     public static function saveResult($item) {
         $dir = Cache::$conf['cachedir'].$item['gid'];
@@ -53,8 +52,12 @@ class Cache extends Once
     public static function getAccessTime() {
         return Access::adminTime();
     }
-    public static function getModifiedTime($conds = array()) {
-        if (!sizeof($conds)) return 0;//Если нет conds кэш навсегда и develop не поможет
+    public static function getModifiedTime($src) {
+        $src = Path::theme($src);
+        if (!$src) return 0;
+        return filemtime($src);
+
+        /*if (!sizeof($conds)) return 0;//Если нет conds кэш навсегда и develop не поможет
         $time = 0;
         for ($i = 0, $l = sizeof($conds); $i < $l; $i++) {
             $mark = $conds[$i];
@@ -75,11 +78,11 @@ class Cache extends Once
                 }
             }
         }
-        return $time;
+        return $time;*/
     }
     public static function execfn(&$item, $fn)
     {
-		$item['exec']['time'] = time();
+		//$item['exec']['time'] = time(); Время выставляется в Once::isChange
 
         $item['exec']['nostore'] = Nostore::check(function () use (&$item, $fn) { //Проверка был ли запрет кэша
             $item['exec']['result'] = call_user_func_array($fn, $item['args']);
