@@ -80,7 +80,7 @@ class Face {
 		}
 		$parents += $item['rel']['parents'];
 		$childs = array_unique(array_merge($parents,array_keys($childs)));
-		Once::setBooTime();
+		Cache::setBooTime();
 		return $childs;
 	}
 	
@@ -92,19 +92,19 @@ class Face {
 		foreach ($childs as $v) {
 			$item = $items[$v];
 			$srcs[] = $item['src'];
-			Once::removeResult($item);
+			$item['cls']::removeResult($item);
 		}
 		$srcs = array_values(array_unique($srcs));
 		foreach ($srcs as $src) {
 			if(!$src) $src = 'index.php';
 			Load::loadTEXT($src);
 		}
-		Once::setBooTime();
-		//Once::loadResult($item);
-		Once::initSave();
+		Cache::setBooTime();
 
-		Once::$proccess = false;
-		$src = Once::getItemsSrc();
+		Cache::initSave();
+
+		Cache::$proccess = false;
+		$src = Cache::getItemsSrc();
 		Load::unload($src);
 		$src = Path::resolve($src);
 		Face::$inited = false;
@@ -114,10 +114,10 @@ class Face {
 	public static function remove($path, $deep = false) {
 		list($right, $item, $items, $path) = Face::init($path);
 		$childs = Face::search($path, $deep); 
-		Once::setBooTime(); //Обновляе кэши без условий если запускаются провеки
+		Cache::setBooTime(); //Обновляе кэши без условий если запускаются провеки
 		Access::adminSetTime(); //Запускает проверки кэшей
 		foreach ($childs as $v) {
-			Once::removeResult($items[$v]);
+			$items[$v]['cls']::removeResult($items[$v]);
 		}
 	}
     public static function run(&$items, $root, $fn, $level = 1) {
@@ -147,7 +147,7 @@ class Face {
 	public static function init($path = 'root') {
 		if (Face::$inited) return Face::$inited;
 		
-		$src = Once::getItemsSrc();
+		$src = Cache::getItemsSrc();
 		$items = FS::file_get_json($src);
 		//if (!$items) $items = Once::$items;
 		$groups = [];
@@ -240,7 +240,7 @@ class Face {
 				$id = $right[sizeof($right) - 1];
 				if (isset($items[$id])) {
 					$item = $items[$id];
-					$data = Once::loadResult($item);
+					$data = $item['cls']::loadResult($item);
 					if ($data) {
 						$item['exec'] = $data['exec'];
 						$item['exec']['result'] = substr(Load::json_encode($item['exec']['result']),0,10000);

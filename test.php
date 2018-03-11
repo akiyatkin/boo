@@ -4,15 +4,22 @@ namespace akiyatkin\boo;
 use infrajs\access\Access;
 use infrajs\event\Event;
 use infrajs\catalog\Catalog;
+use infrajs\once\Once;
 
 Access::test(true);
 
+function test(){
 
-Catalog::cache( function () {
-	echo 'asdf';
 
-	$data = Catalog::init();	
-});
+
+	echo Once::func( function () {
+		echo 'asdf';
+		return 1;
+	});
+}
+
+test();
+test();
 
 
 //fire Запоминает Once::$item и временно восстанавливает его при последующих подписках
