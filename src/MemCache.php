@@ -11,7 +11,6 @@ use infrajs\mem\Mem;
 
 class MemCache extends Cache
 {
-    public static $type = 'MemCache';
     public static $admin = false;
     public static function saveResult($item) {
         $strdata = json_encode($item);
@@ -22,7 +21,7 @@ class MemCache extends Cache
 	}
     public static function loadResult($item) {
 		$strdata = Mem::get('boo-' . $item['id']);
-		$data = json_decode($strdata,true);
+		$data = json_decode($strdata, true);
 		return $data;
     }
 }

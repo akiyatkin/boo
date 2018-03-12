@@ -9,6 +9,7 @@ use infrajs\once\Once;
 use infrajs\access\Access;
 use akiyatkin\fs\FS;
 use infrajs\sequence\Sequence;
+use infrajs\router\Router;
 use League\Flysystem\Adapter\Local;
 use League\Flysystem\Filesystem;
 use Cache\Adapter\Filesystem\FilesystemCachePool;
@@ -113,8 +114,11 @@ class Cache extends Once
         //Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
         
         //if ($r || ($r === 0 && !Access::isTest()) { //Иначе тестировщик постоянно будет пересохранять кэш
-        if ($r) {
+        if ($r || ($r === 0 && !Access::isTest())) {
             //0 - означает что false из после проверки условий, тогда и пользователь может сохранить
+            if (!Cache::$proccess) Cache::$proccess = $item['id']; 
+            //Нельзя что бы остался time старее AdminTime это будет всегда зпускать проверки
+            //Надо один раз сохранить время после AdminTime и проверки запускаться для посетителя не будут
             $item['exec']['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
             $item['exec']['notloaded'] = true; //Ключ который заставит кэш сохранится повторно
         }
@@ -122,32 +126,48 @@ class Cache extends Once
     }
     public static function _isChange(&$item) {
         if (empty($item['exec']['start'])) return true; //Кэша вообще нет ещё
-        
-        
-        if (!Access::isTest()) { //Для обычного человека сравниваем время последнего доступа
-            $atime = Access::adminTime(); //Заходил Админ
-            if ($atime <= $item['exec']['time']) return false; //И не запускаем проверки. 
-            //Есть кэш и админ не заходил
-        }
 
         
+        $atime = Access::adminTime(); //Заходил Админ
+        if (!Access::isTest()) { //Для обычного человека сравниваем время последнего доступа
+            if ($atime <= $item['exec']['time']) return false; //И не запускаем проверки. 
+            //Есть кэш и админ не заходил
+        } else {
+            if ($atime <= $item['exec']['time']) { //Проверки тестировщика запускаются только если кэш старый
+                if (!Router::$main) {
+                    return false;// Не проверять актуальный кэш Проверять только в главном запросе    
+                }
+            }
+        }
+        //Нужно волшебное условие для редактора, после которого проверка запустится
+
+        //Bootime сбрасывает все безусловные кэши это жесть нам не надо менять.
+        //Admintime запускает проверки для пользователя
+        //Редактор всегда всё проверяет
         
+        //die('asdf');
         //Горячий сброс кэша, когда тестировщик обновляет сайт, для пользователей продолжает показываться старый кэш.
         // -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
         // -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
         $atime = static::getStartTime();
-        if ($atime > $item['exec']['time']) return true; //Проверки Не важны, есть отметка что весь кэш устарел
+        if ($atime > $item['exec']['time']) {
+            return true; //Проверки Не важны, есть отметка что весь кэш устарел
+        }
         
 
         
         if (!$item['condfn'] && !static::isAdmin($item)) {//Если кэш вручную не брасывается любое boo сбрасывает кэш без условий
             $atime = Cache::getBooTime();
-            if ($atime > $item['exec']['time']) return true; //Проверок нет, есть bootime - выполняем
+            if ($atime > $item['exec']['time']) {
+                return true; //Проверок нет, есть bootime - выполняем
+            }
         }
  
         foreach ($item['exec']['conds'] as $cond) {
             $time = Cache::getCondTime($cond);
-            if ($time >= $item['exec']['time']) return true;
+            if ($time >= $item['exec']['time']) {
+                return true;
+            }
         }   
         
         return 0;
@@ -192,9 +212,9 @@ class Cache extends Once
     /**
     * Кэш до следующей авторизации админа
     **/
-    public static function getAccessTime() {
-        return Access::adminTime();
-    }
+    //public static function getAccessTime() {
+    //    return Access::adminTime();
+    //}
     public static function getModifiedTime($src) {
         $src = Path::theme($src);
         if (!$src) return 0;
@@ -205,10 +225,8 @@ class Cache extends Once
         $item['exec']['nostore'] = Nostore::check(function () use (&$item, $fn) { //Проверка был ли запрет кэша
             $item['exec']['result'] = call_user_func_array($fn, $item['args']);
         });
-        if (!$item['exec']['nostore']) {
-            Cache::$proccess = true;
-        } else {
-            $item['notloaded'] = null;
+        if ($item['exec']['nostore']) {
+            unset($item['notloaded']);
         }
     }
 
@@ -222,8 +240,6 @@ class Cache extends Once
     }
     
     public static function initSave() {
-        
-
         $admins = array();
         foreach (Once::$items as $id => &$v) {
             if ( !empty($v['exec']['notloaded']) && Cache::isAdmin($v) ) $admins[$id] = &$v;
@@ -255,17 +271,22 @@ class Cache extends Once
             }
             FS::file_put_json($src, $items);
         }
-
+        $count = 1;
+        $timer = 0;
         foreach (Once::$items as $id => &$v) {
             if (!Cache::isSave($v)) continue;
             if (!empty($v['exec']['notloaded'])) { //Выполнено сейчас и не загрруженное не используется
                 unset($v['exec']['notloaded']); //notloaded появляется при выполнении. Сохраняем всегда без него
                 $v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
                 //echo $v['gtitle'].':'.$v['title'].'<br>';
-                Cache::saveResult($v);
+                $count++;
+                $timer += $v['exec']['timer'];
+                $v['cls']::saveResult($v);
             }
         }
-
+        if (Router::$main) {
+            echo '<div style="font-size:10px; text-align:right">Cached: '.$count.', '.round($timer,2).' c</div>';    
+        }
     }
     public static function init () {
         Cache::$cwd = getcwd();
