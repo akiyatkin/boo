@@ -223,11 +223,12 @@ class Cache extends Once
     
     public static function initSave() {
         
+
         $admins = array();
         foreach (Once::$items as $id => &$v) {
             if ( !empty($v['exec']['notloaded']) && Cache::isAdmin($v) ) $admins[$id] = &$v;
         }
-        
+       
         foreach ($admins as $id => &$v) {
             $rems = array();
             $v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));

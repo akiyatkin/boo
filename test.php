@@ -6,20 +6,10 @@ use infrajs\event\Event;
 use infrajs\catalog\Catalog;
 use infrajs\once\Once;
 
-Access::test(true);
+Access::debug(true);
 
-function test(){
-
-
-
-	echo Once::func( function () {
-		echo 'asdf';
-		return 1;
-	});
-}
-
-test();
-test();
+echo '<pre>';
+print_r(Once::$items);
 
 
 //fire Запоминает Once::$item и временно восстанавливает его при последующих подписках
