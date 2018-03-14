@@ -112,8 +112,6 @@ class Cache extends Once
         //Мы хотим оптимизировать, что бы время проверки условий записалось и больше условия не проверялись
         //Для этого при false нужно записать время и сохранить кэш. 
         //Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
-        
-        //if ($r || ($r === 0 && !Access::isTest()) { //Иначе тестировщик постоянно будет пересохранять кэш
         if ($r || ($r === 0 && !Access::isTest())) {
             //0 - означает что false из после проверки условий, тогда и пользователь может сохранить
             if (!Cache::$proccess) Cache::$proccess = $item['id']; 
@@ -285,13 +283,14 @@ class Cache extends Once
             }
         }
         if (Router::$main) {
-            echo '<div style="font-size:10px; text-align:right">Cached: '.$count.', '.round($timer,2).' c</div>';    
+            echo '<div style="font-size:10px; padding:5px; text-align:right">Cache saving: '.$count.', '.round($timer,2).' c. items - '.sizeof(Once::$items).',conds - '.sizeof(Cache::$conds).'</div>';    
         }
     }
     public static function init () {
         Cache::$cwd = getcwd();
         register_shutdown_function( function () {
             chdir(Cache::$cwd);
+            $save = false;
             if (Cache::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
                 $error = error_get_last();
                 
@@ -299,7 +298,14 @@ class Cache extends Once
                 if (is_null($error) || ($error['type'] != E_ERROR
                         && $error['type'] != E_PARSE
                         && $error['type'] != E_COMPILE_ERROR)) {
-                    Cache::initSave();
+                    $save = true;
+                }
+            }
+            if ($save) {
+                Cache::initSave();
+            } else {
+                if (Router::$main) {
+                    echo '<div style="font-size:10px; padding:5px; text-align:right">Cache usage: items - '.sizeof(Once::$items).', conds - '.sizeof(Cache::$conds).'</div>';    
                 }
             }
         });
