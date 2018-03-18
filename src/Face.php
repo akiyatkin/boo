@@ -98,7 +98,7 @@ class Face {
 		//clearstatcache($src);
 	}
 	public static function remove($path, $deep = false) {
-		list($right, $item, $items, $path) = Face::init($path);
+		list($item, $items, $groups) = Face::init($path);
 		$childs = Face::search($path, $deep); 
 		Cache::setBooTime(); //Обновляе кэши без условий если запускаются провеки
 		foreach ($childs as $v) {
