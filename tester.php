@@ -5,43 +5,57 @@ use infrajs\access\Access;
 use infrajs\event\Event;
 use infrajs\catalog\Catalog;
 use infrajs\once\Once;
+use infrajs\excel\Xlsx;
 
-Access::debug(true);
+Access::test(true);
 
-echo '<pre>';
-print_r(Once::$items);
-
-
-//fire Запоминает Once::$item и временно восстанавливает его при последующих подписках
-/*function test() {
-	Cache::exec('test', function () {
-		sleep(1);
-	}, array(), ['akiyatkin\boo\Cache', 'getDurationTime'], array('last week'));
-}
-function done($a){
-	Cache::exec('done', function () {
-		test();
-	}, array($a));
+function Repeat(&$counter) {
+	return Once::func( function () use (&$counter) {
+		$counter++;
+		return 1;
+	},[],['akiyatkin\\boo\\Cache','getBooTime']);
 }
 
-Cache::exec('Апельсин', function () {
-	sleep(1);
-	done(1);
-	done(2);
-	done(3);
-	done(4);
-});
-test();
-Cache::exec('Апельсин', function () {
-	sleep(1);
-	Event::fire('wow');
-});
+$counter = 0;
+Repeat($counter);
+$r = Repeat($counter);
+assert($r === 1);
+assert($counter === 1);
 
-Event::handler('wow', function(){
-	sleep(1);
-	test();
-});
 
+function badaboom(&$counter) {
+	return BooCache::func( function () use (&$counter) {
+		Repeat($counter);
+		return 1;
+	});
+}
+
+$r = badaboom($counter);
+assert($r === 1);
+assert($counter === 1);
+assert(sizeof(Once::$items[Once::$lastid]['conds']) === 1);
+
+
+
+//echo '<Pre>';
+//print_r(Once::$items[Once::$lastid]);
+echo '{ "result": 1 "msg":"Требуется два выполнения"}';
+/*
+function boo(){
+	return BooCache::func( function () {
+		getPoss();
+	});
+}
+
+function search() {
+	return Cache::func( function () {
+		boo();
+	});
+}
+
+$t = microtime(true);
+search();
+echo (microtime(true) - $t).'<br>';
 /*==
 	--
 		**

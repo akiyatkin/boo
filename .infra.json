@@ -4,5 +4,6 @@
 	"update":"update.php",
 	"start":0,
 	"starttime":0,
-	"require":"infra.php"
+	"require":"infra.php",
+	"tester":"tester.php"
 }

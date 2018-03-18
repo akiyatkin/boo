@@ -58,7 +58,7 @@ class Cache extends Once
 	public static function &createItem($args = array(), $condfn = array(), $condargs = array(), $level = 0) {
 		$level++;
 		$item = &Once::createItem($args, $condfn, $condargs, $level);
-		
+		if (isset($item['cls'])) return $item;
 		$title = [];
 		$i = 0;
 		while (isset($args[$i]) && (is_string($args[$i]) || is_integer($args[$i]))) {
@@ -73,7 +73,14 @@ class Cache extends Once
 		$data = static::loadResult($item);
 		
 		if ($data) {
-			$item['exec'] = $data['exec'];
+			$item['loaded'] = true;
+			$item['result'] = $data['result'];
+			$item['conds'] = $data['conds'];
+			$item['timer'] = $data['timer'];
+			$item['childs'] = $data['childs'];
+			$item['time'] = $data['time'];
+		} else {
+			$item['loaded'] = false;
 		}
 		return $item;
 	}
@@ -109,65 +116,49 @@ class Cache extends Once
 		return Cache::$conf['starttime'];
 	}
 	public static function isChange(&$item) {
+		
 		$r = static::_isChange($item);
 
 		//Мы хотим оптимизировать, что бы время проверки условий записалось и больше условия не проверялись
 		//Для этого при false нужно записать время и сохранить кэш. 
 		//Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
-		if ($r || ($r === 0 && !Access::isTest())) {
+		if ($r || ($r === 0 && !Access::isDebug())) {
 			//0 - означает что false из после проверки условий, тогда и пользователь может сохранить
-			if (!Cache::$proccess) Cache::$proccess = $item['id']; 
+			Cache::$proccess = true; 
 			//Нельзя что бы остался time старее AdminTime это будет всегда зпускать проверки
 			//Надо один раз сохранить время после AdminTime и проверки запускаться для посетителя не будут
-			$item['exec']['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
-			$item['exec']['notloaded'] = true; //Ключ который заставит кэш сохранится повторно
+			$item['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
 		}
+
 		return $r;
 	}
 	public static function _isChange(&$item) {
-		if (empty($item['exec']['start'])) return true; //Кэша вообще нет ещё
-		if (!empty($item['exec']['notloaded'])) return false; //Только что выполненный элемент
-
+		if (empty($item['start']) && empty($item['loaded'])) return true; //Кэша вообще нет ещё
+		if (!empty($item['start'])) return false; //Только что выполненный элемент
 		
 		$atime = Access::adminTime(); //Заходил Админ
-		if (!Access::isTest()) { //Для обычного человека сравниваем время последнего доступа
-			if ($atime <= $item['exec']['time']) return false; //И не запускаем проверки. 
-			//Есть кэш и админ не заходил
-		} else {
-			/*if ($atime <= $item['exec']['time']) { //Проверки тестировщика запускаются только если кэш старый
-				if (!Router::$main) {
-					return false;// Не проверять актуальный кэш Проверять только в главном запросе    
-				}
-			}*/
-		} 
-		//Нужно волшебное условие для редактора, после которого проверка запустится
-
-		//Bootime сбрасывает все безусловные кэши это жесть нам не надо менять.
-		//Admintime запускает проверки для пользователя
-		//Редактор всегда всё проверяет
 		
-		//die('asdf');
-		//Горячий сброс кэша, когда тестировщик обновляет сайт, для пользователей продолжает показываться старый кэш.
+
+		if (!Access::isDebug()) { //Для обычного человека сравниваем время последнего доступа
+			if ($atime <= $item['time']) return false; //И не запускаем проверки. 
+			//Есть кэш и админ не заходил
+		} 
+		
+		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
 		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
 		$atime = static::getStartTime();
-		if ($atime > $item['exec']['time']) {
+		if ($atime > $item['time']) {
 			return true; //Проверки Не важны, есть отметка что весь кэш устарел
 		}
-		
+		$item['checked'] = true;
 
-		
-		if (!$item['condfn'] && !static::isAdmin($item)) {//Если кэш вручную не брасывается любое boo сбрасывает кэш без условий
-			$atime = Cache::getBooTime();
-			if ($atime > $item['exec']['time']) {
-				return true; //Проверок нет, есть bootime - выполняем
-			}
-		}
- 
-		foreach ($item['exec']['conds'] as $cond) {
-			$time = Cache::getCondTime($cond);
-			if ($time >= $item['exec']['time']) {
-				return true;
+ 		if(!empty($item['conds'])) {
+			foreach ($item['conds'] as $cond) {
+				$time = Cache::getCondTime($cond);
+				if ($time >= $item['time']) {
+					return true;
+				}
 			}
 		}   
 		
@@ -223,11 +214,11 @@ class Cache extends Once
 	}
 	public static function execfn(&$item, $fn)
 	{
-		$item['exec']['nostore'] = Nostore::check(function () use (&$item, $fn) { //Проверка был ли запрет кэша
-			$item['exec']['result'] = call_user_func_array($fn, $item['args']);
+		$item['nostore'] = Nostore::check(function () use (&$item, $fn) { //Проверка был ли запрет кэша
+			$item['result'] = call_user_func_array($fn, $item['args']);
 		});
-		if ($item['exec']['nostore']) {
-			unset($item['notloaded']);
+		if ($item['nostore']) {
+			Nostore::on();
 		}
 	}
 
@@ -239,59 +230,140 @@ class Cache extends Once
 		if (!isset($item['cls'])) return false;
 		return true;
 	}
-	
+	public static function runNotLoaded($item, $func) {
+		$func($item);
+		if (!empty($item['loaded'])) return; //Элемент был загружен и у него уже всё всборе
+		foreach ($item['childs'] as $cid => $v) {
+			$it = Once::$items[$cid];
+			Cache::runNotLoaded($it, $func);
+		}
+	}
 	public static function initSave() {
+		//isAdmin child добавляет условие для parent
+		
+		//1 найти всех родителей
+		$parents = array();
+		foreach (Once::$items as $id => $item) {
+			if (empty($item['start'])) continue; //Не выполнялся
+			if (!isset(Once::$items[$id]['conds'])) {
+				Once::$items[$id]['conds'] = array();
+			}
+			if (Once::$items[$id]['condfn']) {
+				Once::$items[$id]['conds'][] = array(
+					'fn' => Once::$items[$id]['condfn'],
+					'args' => Once::$items[$id]['condargs']
+				);
+			}
+			foreach (Once::$items[$id]['childs'] as $cid => $v) { //$id например загружен но он есть в Once::$items
+				//Один из childs мог быть загружен и содержать subchilds которых нет в Once::$items
+				if (!isset($parents[$cid])) $parents[$cid] = array();
+				$parents[$cid][$id] = true; //Найденный родитель для cid
+			}
+		}
+
+		
+		//2 Теперь у каждого элемента мы знаем куда наследовать и можем удалять
+		//И надо удалить упоминания этого элемента
+		foreach (Once::$items as $id => $item) {
+			if (Cache::isSave(Once::$items[$id])) continue;
+			//Текущий элемент $id надо удалить
+			if (isset($parents[$id])) { //Есть куда наследовать
+				foreach (Once::$items[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
+					foreach ($parents[$id] as $pid => $p) { //$pid новый родитель для $cid
+						Once::$items[$pid]['childs'][$cid] = true; //Новый child у pid
+					}
+				}
+				foreach ($parents[$id] as $pid => $p) { //$pid новый родитешь для $cid
+					$parents[$cid][$pid] = true; //Новый родитель у cid
+					Once::$items[$pid]['conds'] = array_merge( //Новые cond у родителя
+						Once::$items[$pid]['conds'],
+						Once::$items[$id]['conds']
+					);
+				}
+			}
+
+			foreach (Once::$items[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
+				unset($parents[$cid][$id]); //старый родитель у $cid удалён
+			}
+
+
+			if (isset($parents[$id])) {
+				foreach ($parents[$id] as $pid => $p) {
+					unset(Once::$items[$pid]['childs'][$id]);
+				}
+			}	
+		}
+
+		foreach (Once::$items as $id => $item) {
+			if (Cache::isSave(Once::$items[$id])) continue;
+			unset(Once::$items[$id]); //conds и childs перенесли
+			//Для кого-то он родитель и он остался в $parents
+		}
+		
+		foreach (Once::$items as $id => $item) {
+			if (!Cache::isAdmin($item)) continue;
+			if (isset($parents[$id])) {
+				foreach ($parents[$id] as $pid => $p) {
+					Once::$items[$pid]['conds'][] = array(
+						'fn' => ['akiyatkin\\boo\\Cache','getBooTime'],
+						'args' => []
+					);
+				}
+			}
+		}
+			
+		//3 Копируем conds родителям
+		//Берём элемент и собираем все его conds
+		foreach (Once::$items as $id => $item) {
+			$conds = array();
+			Cache::runNotLoaded($item, function ($item) use (&$conds){
+				$conds = array_merge($conds, $item['conds']);
+			});
+			Once::$items[$id]['conds'] = $conds;			
+		}
+
+		//Убираем дубликаты conds
+		foreach (Once::$items as $id => $item) {
+			//Once::$items[$id]['childs'] = array_values(Once::$items[$id]['childs']);
+			$conds = array();
+			foreach (Once::$items[$id]['conds'] as $i => $cond) {
+				$idc = print_r($cond, true);
+				$conds[$idc] = $cond;
+			}
+			Once::$items[$id]['conds'] = array_values($conds);
+		}
+		
+		//Сохраняем результат
+		foreach (Once::$items as $id => &$v) {
+			if (!empty($v['nostore'])) continue;
+			if (!empty($v['start']) && !empty($v['checked'])) continue;
+			//Выполнено сейчас или были проверки или 
+			$v['cls']::saveResult($v);
+		}
+
+		//Сохраняем результат для админки
 		$admins = array();
 		foreach (Once::$items as $id => &$v) {
-			if ( !empty($v['exec']['notloaded']) && Cache::isAdmin($v) ) $admins[$id] = &$v;
-		}
-	   
-		foreach ($admins as $id => &$v) {
-			$rems = array();
-			$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
-			for ($k = 0; $k < sizeof($v['exec']['childs']); $k++ ) {
-				$cid = $v['exec']['childs'][$k];
-				if (Cache::isAdmin(Once::$items[$cid])) continue; //Если Admin оставляем
-				$rems[] = $cid;
-				array_splice($v['exec']['childs'], $k, 1, Once::$items[$cid]['exec']['childs']);
-				$k--;
-			}
-			$rems = array_unique($rems); //Убранные childs
-			foreach ($rems as $cid) {
-				Once::$items[$id]['exec']['timer'] += Once::$items[$cid]['exec']['timer'];
-			}
-			$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
+			if (!empty($v['nostore'])) continue;
+			if (!Cache::isAdmin($v)) continue;
+			if (!empty($v['start'])) continue;
+			$admins[$id] = &$v;
 		}
 
 		if ($admins) {
 			$src = Cache::getItemsSrc();
 			$items = FS::file_get_json($src);
 			foreach($admins as $id => $it) {
-				unset($it['exec']['result']);
+				unset($it['result']);
 				$items[$id] = $it;
 			}
 			FS::file_put_json($src, $items);
 		}
-		$count = 1;
-		$timer = 0;
-		foreach (Once::$items as $id => &$v) {
-			if (!Cache::isSave($v)) continue;
-			if (!empty($v['exec']['notloaded'])) { //Выполнено сейчас и не загрруженное не используется
-				unset($v['exec']['notloaded']); //notloaded появляется при выполнении. Сохраняем всегда без него
-				$v['exec']['childs'] = array_values(array_unique($v['exec']['childs']));
-				//echo $v['gtitle'].':'.$v['title'].'<br>';
-				$count++;
-				$timer += $v['exec']['timer'];
-				$v['cls']::saveResult($v);
-			}
-		}
-		/*if (Router::$main) {
-			echo 'Cache saving: '.$count.', '.$timer.' c. items - '.sizeof(Once::$items).', conds - '.sizeof(Cache::$conds).'</div>';    
-		}*/
 	}
 	public static function init () {
 		Cache::$cwd = getcwd();
 		register_shutdown_function( function () {
+			if (!Router::$end) return;
 			chdir(Cache::$cwd);
 			$save = false;
 			if (Cache::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
@@ -304,24 +376,9 @@ class Cache extends Once
 					$save = true;
 				}
 			}
-			if (Router::$main) {
-				//echo '<div style="font-size:10px; padding:5px; text-align:right">';
-			}
 			if ($save) {
 				Cache::initSave();
-			} else {
-				/*if (Router::$main) {
-					echo 'Cache usage: items - '.sizeof(Once::$items).', conds - '.sizeof(Cache::$conds);
-				}*/
 			}
-			/*if (Router::$main) {
-				echo '</div>';
-				echo '<br>Количество обращений к выполненнию проверки: '.Cache::$condscounter;
-				echo '<br>Количество разных выполненных проверок: '.sizeof(Cache::$conds);
-				echo '<br>Количество кэш-элементов: '.sizeof(Once::$items);
-				echo '<pre>';
-				print_r(Cache::$conds);
-			}*/
 		});
 	}
 }
