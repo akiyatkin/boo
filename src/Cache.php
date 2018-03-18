@@ -230,12 +230,12 @@ class Cache extends Once
 		if (!isset($item['cls'])) return false;
 		return true;
 	}
-	public static function runNotLoaded($item, $func) {
+	public static function runNotLoaded(&$allitems, $item, $func) {
 		$func($item);
 		if (!empty($item['loaded'])) return; //Элемент был загружен и у него уже всё всборе
 		foreach ($item['childs'] as $cid => $v) {
-			$it = Once::$items[$cid];
-			Cache::runNotLoaded($it, $func);
+			$it = $allitems[$cid];
+			Cache::runNotLoaded($allitems, $it, $func);
 		}
 	}
 	public static function initSave() {
@@ -243,19 +243,20 @@ class Cache extends Once
 		
 		//1 найти всех родителей
 		$parents = array();
-		foreach (Once::$items as $id => $item) {
+		$allitems = Once::$items;
+		foreach ($allitems as $id => $item) {
 			if (empty($item['start'])) continue; //Не выполнялся
-			if (!isset(Once::$items[$id]['conds'])) {
-				Once::$items[$id]['conds'] = array();
+			if (!isset($allitems[$id]['conds'])) {
+				$allitems[$id]['conds'] = array();
 			}
-			if (Once::$items[$id]['condfn']) {
-				Once::$items[$id]['conds'][] = array(
-					'fn' => Once::$items[$id]['condfn'],
-					'args' => Once::$items[$id]['condargs']
+			if ($allitems[$id]['condfn']) {
+				$allitems[$id]['conds'][] = array(
+					'fn' => $allitems[$id]['condfn'],
+					'args' => $allitems[$id]['condargs']
 				);
 			}
-			foreach (Once::$items[$id]['childs'] as $cid => $v) { //$id например загружен но он есть в Once::$items
-				//Один из childs мог быть загружен и содержать subchilds которых нет в Once::$items
+			foreach ($allitems[$id]['childs'] as $cid => $v) { //$id например загружен но он есть в $allitems
+				//Один из childs мог быть загружен и содержать subchilds которых нет в $allitems
 				if (!isset($parents[$cid])) $parents[$cid] = array();
 				$parents[$cid][$id] = true; //Найденный родитель для cid
 			}
@@ -264,47 +265,47 @@ class Cache extends Once
 		
 		//2 Теперь у каждого элемента мы знаем куда наследовать и можем удалять
 		//И надо удалить упоминания этого элемента
-		foreach (Once::$items as $id => $item) {
-			if (Cache::isSave(Once::$items[$id])) continue;
+		foreach ($allitems as $id => $item) {
+			if (Cache::isSave($allitems[$id])) continue;
 			//Текущий элемент $id надо удалить
 			if (isset($parents[$id])) { //Есть куда наследовать
-				foreach (Once::$items[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
+				foreach ($allitems[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
 					foreach ($parents[$id] as $pid => $p) { //$pid новый родитель для $cid
-						Once::$items[$pid]['childs'][$cid] = true; //Новый child у pid
+						$allitems[$pid]['childs'][$cid] = true; //Новый child у pid
 					}
 				}
 				foreach ($parents[$id] as $pid => $p) { //$pid новый родитешь для $cid
 					$parents[$cid][$pid] = true; //Новый родитель у cid
-					Once::$items[$pid]['conds'] = array_merge( //Новые cond у родителя
-						Once::$items[$pid]['conds'],
-						Once::$items[$id]['conds']
+					$allitems[$pid]['conds'] = array_merge( //Новые cond у родителя
+						$allitems[$pid]['conds'],
+						$allitems[$id]['conds']
 					);
 				}
 			}
 
-			foreach (Once::$items[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
+			foreach ($allitems[$id]['childs'] as $cid => $i) { //Всех $cid детей переносим
 				unset($parents[$cid][$id]); //старый родитель у $cid удалён
 			}
 
 
 			if (isset($parents[$id])) {
 				foreach ($parents[$id] as $pid => $p) {
-					unset(Once::$items[$pid]['childs'][$id]);
+					unset($allitems[$pid]['childs'][$id]);
 				}
 			}	
 		}
 
-		foreach (Once::$items as $id => $item) {
-			if (Cache::isSave(Once::$items[$id])) continue;
-			unset(Once::$items[$id]); //conds и childs перенесли
+		foreach ($allitems as $id => $item) {
+			if (Cache::isSave($allitems[$id])) continue;
+			unset($allitems[$id]); //conds и childs перенесли
 			//Для кого-то он родитель и он остался в $parents
 		}
 		
-		foreach (Once::$items as $id => $item) {
+		foreach ($allitems as $id => $item) {
 			if (!Cache::isAdmin($item)) continue;
 			if (isset($parents[$id])) {
 				foreach ($parents[$id] as $pid => $p) {
-					Once::$items[$pid]['conds'][] = array(
+					$allitems[$pid]['conds'][] = array(
 						'fn' => ['akiyatkin\\boo\\Cache','getBooTime'],
 						'args' => []
 					);
@@ -314,27 +315,27 @@ class Cache extends Once
 			
 		//3 Копируем conds родителям
 		//Берём элемент и собираем все его conds
-		foreach (Once::$items as $id => $item) {
+		foreach ($allitems as $id => $item) {
 			$conds = array();
-			Cache::runNotLoaded($item, function ($item) use (&$conds){
+			Cache::runNotLoaded($allitems, $item, function ($item) use (&$conds){
 				$conds = array_merge($conds, $item['conds']);
 			});
-			Once::$items[$id]['conds'] = $conds;			
+			$allitems[$id]['conds'] = $conds;			
 		}
 
 		//Убираем дубликаты conds
-		foreach (Once::$items as $id => $item) {
-			//Once::$items[$id]['childs'] = array_values(Once::$items[$id]['childs']);
+		foreach ($allitems as $id => $item) {
+			//$allitems[$id]['childs'] = array_values($allitems[$id]['childs']);
 			$conds = array();
-			foreach (Once::$items[$id]['conds'] as $i => $cond) {
+			foreach ($allitems[$id]['conds'] as $i => $cond) {
 				$idc = print_r($cond, true);
 				$conds[$idc] = $cond;
 			}
-			Once::$items[$id]['conds'] = array_values($conds);
+			$allitems[$id]['conds'] = array_values($conds);
 		}
 		
 		//Сохраняем результат
-		foreach (Once::$items as $id => &$v) {
+		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
 			if (!empty($v['start']) && !empty($v['checked'])) continue;
 			//Выполнено сейчас или были проверки или 
@@ -343,13 +344,13 @@ class Cache extends Once
 
 		//Сохраняем результат для админки
 		$admins = array();
-		foreach (Once::$items as $id => &$v) {
+		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
 			if (!Cache::isAdmin($v)) continue;
-			if (!empty($v['start'])) continue;
+			if (empty($v['start'])) continue; //Если прям сейчас не выполнялся, то выходим
 			$admins[$id] = &$v;
 		}
-
+	
 		if ($admins) {
 			$src = Cache::getItemsSrc();
 			$items = FS::file_get_json($src);

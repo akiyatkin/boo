@@ -25,21 +25,24 @@ assert($counter === 1);
 
 function badaboom(&$counter) {
 	return BooCache::func( function () use (&$counter) {
+		sleep(1);
 		Repeat($counter);
 		return 1;
 	});
 }
 
 $r = badaboom($counter);
+
 assert($r === 1);
 assert($counter === 1);
 assert(sizeof(Once::$items[Once::$lastid]['conds']) === 1);
+assert(Once::$items[Once::$lastid]['timer'] >= 1);
 
 
 
 //echo '<Pre>';
 //print_r(Once::$items[Once::$lastid]);
-echo '{ "result": 1 "msg":"Требуется два выполнения"}';
+echo '{ "result": 1 "msg":"Прохождение со второго выполнения"}';
 /*
 function boo(){
 	return BooCache::func( function () {

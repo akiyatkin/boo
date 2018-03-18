@@ -73,7 +73,7 @@
 		  <!-- Вкладки панелей -->  
 		  <div class="tab-content">
 		    <div role="tabpanel" class="tab-pane active" id="args">{~length(args)?~print(args)?:strno}</div>
-		    <div role="tabpanel" class="tab-pane" id="res"><pre>{exec.result}</pre></div>
+		    <div role="tabpanel" class="tab-pane" id="res"><pre>{result}</pre></div>
 		  </div>
 
 		</div>
@@ -107,7 +107,7 @@
 {heading:}
 	<a href="/-boo"><h1>Управление кэшем</h1></a>
 {info:}
-	Всего <b>{count}</b>, последние изменения <b>{~date(:j F Y H:i,exec.time)}</b>
+	Всего <b>{count}</b>, последние изменения <b>{~date(:j F Y H:i,time)}</b>
 {source:}<a href="/{src}">{src}</a><span style="color:gray">{boo}</span><br>
 
 {layout-root:}
@@ -141,7 +141,7 @@
 	</div>
 
 	{~length(item.paths)>:1?:obrpaths?(~length(item.paths.0)>:1?:obrpaths)}
-	{~length(item.exec.childs)?:zavchilds}
+	{~length(item.childs)?:zavchilds}
 
 	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
 
@@ -162,7 +162,7 @@
 	{zavchilds:}
 		<div>
 			<h2>Зависимости</h2>
-			{item.exec.childs::childs}
+			{item.childs::childs}
 		</div>
 	{obrpaths:}
 		<div style="margin-bottom:10px">
@@ -219,36 +219,36 @@
 	{refresh?:refreshlabel?:btnrefreshshowroot}
 	{btnrefreshshowroot:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить весь кэш <b>{exec.timerfr} с</b></a>
+		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить весь кэш <b>{timerch} с</b></a>
 	</div>
 {btnrefreshitem:}
 	{refresh?:refreshlabel?:btnrefreshshowitem}
 	{btnrefreshshowitem:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{item.exec.timerch} с</b></a>
-		{~length(item.exec.childs)?:refchilds}
+		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить <b>{item.timerch} с</b></a>
+		{~length(item.childs)?:refchilds}
 	</div>
-	{refchilds:}<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.exec.timerfr} с</b></a>
+	{refchilds:}<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.timerfr} с</b></a>
 {btnrefreshgroup:}
 	{refresh?:refreshlabel?:btnrefreshshowgroup}
 
 	{btnrefreshshowgroup:}
 	<div style="margin-bottom:5px">
-		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить кэш группы <b>{item.exec.timerch} с</b></a>
-		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.exec.timerfr} с</b></a>
+		<a href="/-boo/{path}/refresh" class="btn btn-danger">Обновить кэш группы <b>{item.timerch} с</b></a>
+		<a href="/-boo/{path}/refresh/deep" class="btn btn-danger">Обновить вместе с зависимостями <b>{item.timerfr} с</b></a>
 	</div>
 {timeinfoitem:}
 	<div style="margin-bottom:10px">
-		Последние изменения: <b>{~date(:H:i j F Y,item.exec.time)}</b><br>
+		Последние изменения: <b>{~date(:H:i j F Y,item.time)}</b><br>
 		Тип: <b>{item.cls}</b><br>
 		Группа: <a href="/-boo/{item.gid}" class="group">{item.gtitle}</a><br>
-		Личное время: <b>{item.exec.timer} с</b><br>
+		Личное время: <b>{item.timer} с</b><br>
 		Адрес создания: <a href="/{item.src}">{item.src}</a><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/{pathsrc}">{pathsrc}</a><br>
 	</div>
 {timeinfogroup:}
 	<div style="margin-bottom:10px">
-		Последние изменения: <b>{~date(:H:i j F Y,exec.time)}</b><br>
+		Последние изменения: <b>{~date(:H:i j F Y,time)}</b><br>
 		Параметр для ссылок: <a style="color:inherit; font-weight:bold" title="Параметр можно добавить к любой ссылке на сайте. Нужно при разработке. Кэш обновится." href="/{pathsrc}">{pathsrc}</a><br>
 	</div>
 {groups:}
@@ -261,5 +261,5 @@
 		{pointl:} <a title="Упростить путь" style="text-transform: none" href="/-boo/{item.id}">←</a> 
 		{point:} — 
 		{echotitle:}{title}{~last()|:point}
-{refreshlabel:}<div class="alert alert-success">Выполнено обновление!<br><a class="btn btn-danger" href="/-boo/{path}/refresh">Обновить <b>{item.exec.timerch} с</b></a> <a class="btn btn-danger" href="/-boo/{path}/refresh/deep">Обновить с зависимостями <b>{item.exec.timerfr} с</b></a></div>
+{refreshlabel:}<div class="alert alert-success">Выполнено обновление!<br><a class="btn btn-danger" href="/-boo/{path}/refresh">Обновить <b>{item.timerch} с</b></a> <a class="btn btn-danger" href="/-boo/{path}/refresh/deep">Обновить с зависимостями <b>{item.timerfr} с</b></a></div>
 {removelabel:}<div class="alert alert-success"><b>Кэш удалён!</b> Кэш будет создан при следующем обращении или обновлении.</div>

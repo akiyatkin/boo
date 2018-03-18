@@ -94,6 +94,7 @@ item.result, item.conds, item.childs восстанавливаются и их 
 - id
 - gid
 - cls
+- src
 - gtitle
 - title
 - condfn
