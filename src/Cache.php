@@ -212,15 +212,7 @@ class Cache extends Once
 		if (!$src) return 0;
 		return filemtime($src);
 	}
-	public static function execfn(&$item, $fn)
-	{
-		$item['nostore'] = Nostore::check(function () use (&$item, $fn) { //Проверка был ли запрет кэша
-			$item['result'] = call_user_func_array($fn, $item['args']);
-		});
-		if ($item['nostore']) {
-			Nostore::on();
-		}
-	}
+	
 
 	public static function isAdmin($item) {
 		if (!isset($item['cls'])) return false;
@@ -234,6 +226,7 @@ class Cache extends Once
 		$func($item);
 		if (!empty($item['loaded'])) return; //Элемент был загружен и у него уже всё всборе
 		foreach ($item['childs'] as $cid => $v) {
+			if (!isset($allitems[$cid])) continue;
 			$it = $allitems[$cid];
 			Cache::runNotLoaded($allitems, $it, $func);
 		}
@@ -244,6 +237,7 @@ class Cache extends Once
 		//1 найти всех родителей
 		$parents = array();
 		$allitems = Once::$items;
+
 		foreach ($allitems as $id => $item) {
 			if (empty($item['start'])) continue; //Не выполнялся
 			if (!isset($allitems[$id]['conds'])) {
@@ -262,6 +256,7 @@ class Cache extends Once
 			}
 		}
 
+		
 		
 		//2 Теперь у каждого элемента мы знаем куда наследовать и можем удалять
 		//И надо удалить упоминания этого элемента
@@ -294,6 +289,7 @@ class Cache extends Once
 				}
 			}	
 		}
+
 
 		foreach ($allitems as $id => $item) {
 			if (Cache::isSave($allitems[$id])) continue;
