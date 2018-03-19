@@ -18,7 +18,7 @@ use Cache\Adapter\Filesystem\FilesystemCachePool;
 class Cache extends Once
 {
 	public static $cwd = false;
-	public static $proccess = false;
+	public static $process = false;
 	public static $conds = array();
 	public static $conf = array(
 		'cachedir' => '!boo/',
@@ -122,9 +122,10 @@ class Cache extends Once
 		//Мы хотим оптимизировать, что бы время проверки условий записалось и больше условия не проверялись
 		//Для этого при false нужно записать время и сохранить кэш. 
 		//Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
-		if ($r || ($r === 0 && !Access::isDebug())) {
+		if ($r || ($r === 0 && !Access::isTest())) {
 			//0 - означает что false из после проверки условий, тогда и пользователь может сохранить
-			Cache::$proccess = true; 
+			if (!Cache::$process) header('Boo-cache: process');
+			Cache::$process = true; 
 			//Нельзя что бы остался time старее AdminTime это будет всегда зпускать проверки
 			//Надо один раз сохранить время после AdminTime и проверки запускаться для посетителя не будут
 			$item['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
@@ -136,14 +137,14 @@ class Cache extends Once
 		if (empty($item['start']) && empty($item['loaded'])) return true; //Кэша вообще нет ещё
 		if (!empty($item['start'])) return false; //Только что выполненный элемент
 		
-		$atime = Access::adminTime(); //Заходил Админ
 		
-
-		if (!Access::isDebug()) { //Для обычного человека сравниваем время последнего доступа
+		if (!Access::isTest()) { //Для обычного человека сравниваем время последнего доступа
+			$atime = Access::adminTime(); //Заходил Админ
 			if ($atime <= $item['time']) return false; //И не запускаем проверки. 
 			//Есть кэш и админ не заходил
 		} 
-		
+		$item['checked'] = true;
+		header('Boo-cache: check');
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
 		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
@@ -151,7 +152,6 @@ class Cache extends Once
 		if ($atime > $item['time']) {
 			return true; //Проверки Не важны, есть отметка что весь кэш устарел
 		}
-		$item['checked'] = true;
 
  		if(!empty($item['conds'])) {
 			foreach ($item['conds'] as $cond) {
@@ -161,7 +161,6 @@ class Cache extends Once
 				}
 			}
 		}   
-		
 		return 0;
 	}
 	/**
@@ -233,16 +232,12 @@ class Cache extends Once
 	}
 	public static function initSave() {
 		//isAdmin child добавляет условие для parent
-		
 		//1 найти всех родителей
 		$parents = array();
 		$allitems = Once::$items;
 
 		foreach ($allitems as $id => $item) {
 			if (empty($item['start'])) continue; //Не выполнялся
-			if (!isset($allitems[$id]['conds'])) {
-				$allitems[$id]['conds'] = array();
-			}
 			if ($allitems[$id]['condfn']) {
 				$allitems[$id]['conds'][] = array(
 					'fn' => $allitems[$id]['condfn'],
@@ -363,7 +358,7 @@ class Cache extends Once
 			if (!Router::$end) return;
 			chdir(Cache::$cwd);
 			$save = false;
-			if (Cache::$proccess) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
+			if (Cache::$process) { //В обычном режиме кэш не создаётся а только используется, вот если было создание тогда сохраняем
 				$error = error_get_last();
 				
 				//E_WARNING - неотправленное письмо mail при неправильно настроенном сервере
