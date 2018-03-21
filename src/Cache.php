@@ -143,6 +143,9 @@ class Cache extends Once
 			if ($atime <= $item['time']) return false; //И не запускаем проверки. 
 			//Есть кэш и админ не заходил
 		} 
+		if (Access::isDebug()) {
+			if (filemtime($item['file']) > $item['time']) return true;
+		}
 		$item['checked'] = true;
 		header('Boo-cache: check');
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
