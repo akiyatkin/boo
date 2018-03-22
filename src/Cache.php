@@ -112,6 +112,7 @@ class Cache extends Once
 		Cache::$conf['time'] = $sys['boo']['time'];
 		FS::file_put_json('!.infra.json', $sys);
 	}
+
 	public static function getStartTime() {
 		return Cache::$conf['starttime'];
 	}
@@ -124,14 +125,21 @@ class Cache extends Once
 		//Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
 		if ($r || ($r === 0 && !Access::isTest())) {
 			//0 - означает что false из после проверки условий, тогда и пользователь может сохранить
-			if (!Cache::$process) header('Boo-cache: process');
-			Cache::$process = true; 
 			//Нельзя что бы остался time старее AdminTime это будет всегда зпускать проверки
 			//Надо один раз сохранить время после AdminTime и проверки запускаться для посетителя не будут
 			$item['time'] = time();//Обновляем время, даже если выполнения далее не будет, что бы не запускать проверки
 		}
 
 		return $r;
+	}
+	public static function isReady(&$item) {
+		if (!empty($item['nostore'])) return;
+		if (Cache::$process) return;
+		if (!empty($item['loaded']) && empty($item['start'] && empty($item['checked']))) return;
+		if (!empty($item['start']) || !empty($item['checked'])) { //Было выполнение или проверки
+			Cache::$process = true;
+			header('Boo-cache: process'); 
+		}
 	}
 	public static function _isChange(&$item) {
 		if (empty($item['start']) && empty($item['loaded'])) return true; //Кэша вообще нет ещё
@@ -147,7 +155,7 @@ class Cache extends Once
 			if (filemtime($item['file']) > $item['time']) return true;
 		}
 		$item['checked'] = true;
-		header('Boo-cache: check');
+		header('Boo-cache: check '.sizeof($item['conds']));
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
 		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
@@ -253,8 +261,6 @@ class Cache extends Once
 				$parents[$cid][$id] = true; //Найденный родитель для cid
 			}
 		}
-
-		
 		
 		//2 Теперь у каждого элемента мы знаем куда наследовать и можем удалять
 		//И надо удалить упоминания этого элемента
@@ -327,7 +333,6 @@ class Cache extends Once
 			}
 			$allitems[$id]['conds'] = array_values($conds);
 		}
-		
 		//Сохраняем результат
 		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
