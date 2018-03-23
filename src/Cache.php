@@ -84,7 +84,10 @@ class Cache extends Once
 		}
 		return $item;
 	}
-
+	//Текущий кэш не сохранится
+	public static function ignore(){
+		Once::$item['ignore'] = true;
+	}
 	/**
 	 * Адрес текущего GET запроса
 	 *
@@ -133,8 +136,9 @@ class Cache extends Once
 		return $r;
 	}
 	public static function isReady(&$item) {
-		if (!empty($item['nostore'])) return;
 		if (Cache::$process) return;
+		if (!empty($item['nostore'])) return;
+		if (!empty($item['ignore'])) return;
 		if (!empty($item['loaded']) && empty($item['start'] && empty($item['checked']))) return;
 		if (!empty($item['start']) || !empty($item['checked'])) { //Было выполнение или проверки
 			Cache::$process = true;
@@ -155,7 +159,9 @@ class Cache extends Once
 			if (filemtime($item['file']) > $item['time']) return true;
 		}
 		$item['checked'] = true;
-		header('Boo-cache: check '.sizeof($item['conds']));
+		if (!Cache::$process) {
+			header('Boo-cache: check '.sizeof($item['conds']));
+		}
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
 		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
@@ -229,6 +235,7 @@ class Cache extends Once
 		return $item['cls']::$admin;
 	}
 	public static function isSave($item) {
+		if (!empty($item['ignore'])) return false;
 		if (!isset($item['cls'])) return false;
 		return true;
 	}
