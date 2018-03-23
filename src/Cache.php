@@ -84,9 +84,20 @@ class Cache extends Once
 		}
 		return $item;
 	}
-	//Текущий кэш не сохранится
+	/**
+	* Текущий кэш не сохранится
+	**/
 	public static function ignore(){
 		Once::$item['ignore'] = true;
+	}
+	/**
+	* К текущему кэшу добавляется проверка
+	**/
+	public static function addCond($fn, $args = []){
+		Once::$item['conds'][] = [
+			'fn' => $fn,
+			'args' => $args
+		];
 	}
 	/**
 	 * Адрес текущего GET запроса
@@ -141,7 +152,7 @@ class Cache extends Once
 		if (Cache::$process) return;
 		if (!empty($item['nostore'])) return;
 		if (!empty($item['ignore'])) return;
-		if (!empty($item['loaded']) && empty($item['start'] && empty($item['checked']))) return;
+		if (!empty($item['loaded']) && empty($item['start']) && empty($item['checked'])) return;
 		if (!empty($item['start']) || !empty($item['checked'])) { //Было выполнение или проверки
 			Cache::$process = true;
 			header('Boo-cache: process'); 
@@ -226,8 +237,9 @@ class Cache extends Once
 	//public static function getAccessTime() {
 	//    return Access::adminTime();
 	//}
-	public static function getModifiedTime($src) {
-		$src = Path::theme($src);
+	public static function getModifiedTime($isrc) {
+		$src = Path::theme($isrc);
+		//if ($isrc == '~catalog/') var_dump(filemtime($src));
 		if (!$src) return 0;
 		return filemtime($src);
 	}
@@ -348,11 +360,11 @@ class Cache extends Once
 		//Сохраняем результат
 		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
-			if (!empty($v['start']) && !empty($v['checked'])) continue;
+			if (empty($v['start']) && empty($v['checked'])) continue;
 			//Выполнено сейчас или были проверки или 
 			$v['cls']::saveResult($v);
 		}
-		
+
 		//Сохраняем результат для админки
 		$admins = array();
 		foreach ($allitems as $id => &$v) {
