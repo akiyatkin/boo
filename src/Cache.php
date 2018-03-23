@@ -256,7 +256,7 @@ class Cache extends Once
 	}
 	public static function runNotLoaded(&$allitems, $item, $func) {
 		$func($item);
-		if (!empty($item['loaded'])) return; //Элемент был загружен и у него уже всё всборе
+		if (!empty($item['loaded']) && empty($item['start'])) return; //Элемент был загружен и не выполнялся у него уже всё всборе
 		foreach ($item['childs'] as $cid => $v) {
 			if (!isset($allitems[$cid])) continue;
 			$it = $allitems[$cid];
@@ -356,7 +356,12 @@ class Cache extends Once
 			}
 			$allitems[$id]['conds'] = array_values($conds);
 		}
-		
+		/*echo '<pre>';
+		foreach ($allitems as $id => &$v) {
+			unset($v['result']);
+		}
+		print_r($allitems);
+		exit;*/
 		//Сохраняем результат
 		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
