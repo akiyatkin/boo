@@ -271,7 +271,7 @@ class Cache extends Once
 				$parents[$cid][$id] = true; //Найденный родитель для cid
 			}
 		}
-		
+
 		//2 Теперь у каждого элемента мы знаем куда наследовать и можем удалять
 		//И надо удалить упоминания этого элемента
 		foreach ($allitems as $id => $item) {
@@ -310,6 +310,7 @@ class Cache extends Once
 			unset($allitems[$id]); //conds и childs перенесли
 			//Для кого-то он родитель и он остался в $parents
 		}
+
 		
 		foreach ($allitems as $id => $item) {
 			if (!Cache::isAdmin($item)) continue;
@@ -332,7 +333,7 @@ class Cache extends Once
 			});
 			$allitems[$id]['conds'] = $conds;			
 		}
-
+		
 		//Убираем дубликаты conds
 		foreach ($allitems as $id => $item) {
 			//$allitems[$id]['childs'] = array_values($allitems[$id]['childs']);
@@ -343,6 +344,7 @@ class Cache extends Once
 			}
 			$allitems[$id]['conds'] = array_values($conds);
 		}
+		
 		//Сохраняем результат
 		foreach ($allitems as $id => &$v) {
 			if (!empty($v['nostore'])) continue;
@@ -350,7 +352,7 @@ class Cache extends Once
 			//Выполнено сейчас или были проверки или 
 			$v['cls']::saveResult($v);
 		}
-
+		
 		//Сохраняем результат для админки
 		$admins = array();
 		foreach ($allitems as $id => &$v) {

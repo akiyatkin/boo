@@ -13,15 +13,15 @@ class MemCache extends Cache
 {
     public static $admin = false;
     public static function saveResult($item) {
-        $strdata = json_encode($item);
-		Mem::set('boo-' . $item['id'], $strdata);
+        //$strdata = json_encode($item);
+		Mem::set('boo-' . $item['id'], $item);
     }
 	public static function removeResult($item){
 		Mem::delete('boo-' . $item['id']);
 	}
     public static function loadResult($item) {
-		$strdata = Mem::get('boo-' . $item['id']);
-		$data = json_decode($strdata, true);
+		$data = Mem::get('boo-' . $item['id']);
+		//$data = json_decode($strdata, true);
 		return $data;
     }
 }
