@@ -122,7 +122,9 @@ class Cache extends Once
 	public static function isChange(&$item) {
 		
 		$r = static::_isChange($item);
-
+		if (!empty($item['checked'])) {
+			header('Boo-cache-check: '.sizeof(Cache::$conds));
+		}
 		//Мы хотим оптимизировать, что бы время проверки условий записалось и больше условия не проверялись
 		//Для этого при false нужно записать время и сохранить кэш. 
 		//Но false для пользователя не значит что будет false для админа по этому время установить можно не всегда.
@@ -158,17 +160,18 @@ class Cache extends Once
 		if (Access::isDebug()) {
 			if (filemtime($item['file']) > $item['time']) return true;
 		}
-		$item['checked'] = true;
-		if (!Cache::$process) {
-			header('Boo-cache: check '.sizeof($item['conds']));
-		}
+		
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
 		// -Once::setStartTime() сбрасывает StartTime и BooTime и кэш создаётся только для тестировщика и без проверок
 		$atime = static::getStartTime();
 		if ($atime > $item['time']) {
+			header('Boo-cache-start-time: true');
 			return true; //Проверки Не важны, есть отметка что весь кэш устарел
 		}
+
+		$item['checked'] = true;
+		
 
  		if(!empty($item['conds'])) {
 			foreach ($item['conds'] as $cond) {
