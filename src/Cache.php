@@ -153,8 +153,8 @@ class Cache extends Once
 		if (!empty($item['nostore'])) return;
 		if (!empty($item['ignore'])) return;
 		if (!empty($item['loaded']) && empty($item['start']) && empty($item['checked'])) return;
-		if (!empty($item['start']) || !empty($item['checked'])) { //Было выполнение или проверки
-			Cache::$process = true;
+		if (!empty($item['start']) || (!empty($item['checked']) && !Access::isTest())) { //Было выполнение или проверки
+			Cache::$process = $item;
 			header('Boo-cache: process'); 
 		}
 	}
