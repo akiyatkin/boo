@@ -168,9 +168,9 @@ class Cache extends Once
 			if ($atime <= $item['time']) return false; //И не запускаем проверки. 
 			//Есть кэш и админ не заходил
 		} 
-		if (Access::isDebug()) {
-			if (filemtime($item['file']) > $item['time']) return true;
-		}
+		//if (Access::isDebug()) {
+		//	if (filemtime($item['file']) > $item['time']) return true;
+		//}
 		
 		//Горячий сброс кэша, когда редактор обновляет сайт, для пользователей продолжает показываться старый кэш.
 		// -boo сбрасывает BooTime и AccessTime и запускает проверки для всех пользователей
@@ -266,6 +266,7 @@ class Cache extends Once
 	public static function initSave() {
 		//isAdmin child добавляет условие для parent
 		//1 найти всех родителей
+		//Из-за событий мы можем продолжить кэш-элемент после его завершения
 		$parents = array();
 		$allitems = Once::$items;
 
