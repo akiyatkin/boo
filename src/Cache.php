@@ -238,6 +238,7 @@ class Cache extends Once
 	//    return Access::adminTime();
 	//}
 	public static function getModifiedTime($isrc) {
+		if (isset($_GET['-boo']) && $_GET['-boo'] == 'fs') return;
 		$src = Path::theme($isrc);
 		//if ($isrc == '~catalog/') var_dump(filemtime($src));
 		if (!$src) return 0;
