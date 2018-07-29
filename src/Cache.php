@@ -258,7 +258,9 @@ class Cache extends Once
 	public static function runNotLoaded(&$allitems, $item, $func) {
 		$func($item);
 		if (!empty($item['loaded']) && empty($item['start'])) return; //Элемент был загружен и не выполнялся у него уже всё всборе
+		if (empty($item['childs'])) return;
 		foreach ($item['childs'] as $cid => $v) {
+			if ($item['id'] == $cid) continue; //Фигня какая-то баг... 
 			if (!isset($allitems[$cid])) continue;
 			$it = $allitems[$cid];
 			Cache::runNotLoaded($allitems, $it, $func);
