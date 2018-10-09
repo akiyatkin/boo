@@ -119,7 +119,7 @@
 	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
 
 		<div class="pull-right text-right">
-			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+			<a class="btn btn-xs btn-secondary" href="/-boo/{path}/remove">
 				Удалить весь кэш
 			</a>
 		</div>
@@ -146,10 +146,10 @@
 	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
 
 		<div class="pull-right text-right">
-			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+			<a class="btn btn-xs btn-secondary" href="/-boo/{path}/remove">
 				Удалить <b>{right::echotitle}</b> без зависимостей
 			</a><br>
-			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove/deep">
+			<a class="pull-right btn btn-xs btn-secondary" href="/-boo/{path}/remove/deep">
 				Удалить <b>{right::echotitle}</b> с зависимостями
 			</a>
 		</div>
@@ -197,10 +197,10 @@
 	<div style="clear:both; margin-top:20px; margin-bottom:50px; font-size:90%; padding-top:20px; border-top:10px solid #999">
 
 		<div class="pull-right text-right">
-			<a class="btn btn-xs btn-default" href="/-boo/{path}/remove">
+			<a class="btn btn-xs btn-secondary" href="/-boo/{path}/remove">
 				Удалить <b>{right::echotitle}</b> без зависимостей
 			</a><br>
-			<a class="pull-right btn btn-xs btn-default" href="/-boo/{path}/remove/deep">
+			<a class="pull-right btn btn-xs btn-secondary" href="/-boo/{path}/remove/deep">
 				Удалить <b>{right::echotitle}</b> с зависимостями
 			</a>
 		</div>
